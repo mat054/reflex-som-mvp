@@ -12,6 +12,7 @@ from .serializers import (
     EquipamentoCreateUpdateSerializer,
     EquipamentoCalculoValorSerializer
 )
+from .permissions import IsStaffUser
 
 
 class CategoriaListView(generics.ListAPIView):
@@ -29,7 +30,7 @@ class CategoriaCreateView(generics.CreateAPIView):
     """
     queryset = Categoria.objects.all()
     serializer_class = CategoriaSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsStaffUser]
 
 
 class EquipamentoListView(generics.ListAPIView):
@@ -89,7 +90,7 @@ class EquipamentoCreateView(generics.CreateAPIView):
     """
     queryset = Equipamento.objects.all()
     serializer_class = EquipamentoCreateUpdateSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsStaffUser]
     
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -113,7 +114,7 @@ class EquipamentoUpdateView(generics.UpdateAPIView):
     """
     queryset = Equipamento.objects.all()
     serializer_class = EquipamentoCreateUpdateSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsStaffUser]
     
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -139,7 +140,7 @@ class EquipamentoDeleteView(generics.DestroyAPIView):
     View para deletar equipamento (apenas staff)
     """
     queryset = Equipamento.objects.all()
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsStaffUser]
     
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()

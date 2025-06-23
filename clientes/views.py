@@ -36,6 +36,8 @@ class ClienteRegistroView(generics.CreateAPIView):
                     'id': cliente.id,
                     'email': cliente.email,
                     'nome_completo': cliente.nome_completo,
+                    'is_staff': cliente.is_staff,
+                    'is_superuser': cliente.is_superuser,
                 },
                 'tokens': {
                     'refresh': str(refresh),
@@ -66,6 +68,8 @@ class ClienteLoginView(APIView):
                     'id': cliente.id,
                     'email': cliente.email,
                     'nome_completo': cliente.nome_completo,
+                    'is_staff': cliente.is_staff,
+                    'is_superuser': cliente.is_superuser,
                 },
                 'tokens': {
                     'refresh': str(refresh),
@@ -159,7 +163,9 @@ def cliente_info_view(request):
         'cpf_cnpj': cliente.cpf_cnpj,
         'telefone': cliente.telefone,
         'data_cadastro': cliente.data_cadastro,
-        'is_authenticated': True
+        'is_authenticated': True,
+        'is_staff': cliente.is_staff,
+        'is_superuser': cliente.is_superuser
     }, status=status.HTTP_200_OK)
 
 

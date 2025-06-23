@@ -2,11 +2,13 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import StaffRoute from './components/StaffRoute';
 import Login from './components/Login';
 import Registro from './components/Registro';
 import Dashboard from './components/Dashboard';
 import Perfil from './components/Perfil';
 import Equipamentos from './components/Equipamentos';
+import CadastrarEquipamento from './components/CadastrarEquipamento';
 import './App.css';
 
 function App() {
@@ -35,6 +37,14 @@ function App() {
             <Route path="/equipamentos" element={
               <ProtectedRoute>
                 <Equipamentos />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/equipamentos/cadastrar" element={
+              <ProtectedRoute>
+                <StaffRoute>
+                  <CadastrarEquipamento />
+                </StaffRoute>
               </ProtectedRoute>
             } />
             

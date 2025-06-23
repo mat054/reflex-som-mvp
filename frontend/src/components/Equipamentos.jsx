@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { equipamentoService } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 import Layout from './Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,11 +18,13 @@ import {
   Calendar,
   DollarSign,
   Grid,
-  List
+  List,
+  Plus
 } from 'lucide-react';
 
 const Equipamentos = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
   const [equipamentos, setEquipamentos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +38,9 @@ const Equipamentos = () => {
     marca: searchParams.get('marca') || '',
   });
 
+  // Verificar se o usuário é staff
+  const isStaff = user?.is_staff || false;
+
   useEffect(() => {
     loadCategorias();
   }, []);
@@ -46,7 +52,7 @@ const Equipamentos = () => {
   const loadCategorias = async () => {
     try {
       const response = await equipamentoService.listarCategorias();
-      setCategorias(response);
+      setCategorias(Array.isArray(response) ? response : response.results || response.categorias || []);
     } catch (error) {
       console.error('Erro ao carregar categorias:', error);
     }
@@ -238,6 +244,14 @@ const Equipamentos = () => {
             </p>
           </div>
           <div className="flex items-center space-x-2">
+            {isStaff && (
+              <Button asChild>
+                <Link to="/equipamentos/cadastrar">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Cadastrar Equipamento
+                </Link>
+              </Button>
+            )}
             <Button
               variant={viewMode === 'grid' ? 'default' : 'outline'}
               size="sm"
@@ -290,7 +304,7 @@ const Equipamentos = () => {
                       <SelectValue placeholder="Todas as categorias" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todas as categorias</SelectItem>
+                      <SelectItem value="all">Todas as categorias</SelectItem>
                       {categorias.map((categoria) => (
                         <SelectItem key={categoria.id} value={categoria.id.toString()}>
                           {categoria.nome}
@@ -310,7 +324,7 @@ const Equipamentos = () => {
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todos</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
                       <SelectItem value="true">Apenas disponíveis</SelectItem>
                       <SelectItem value="false">Indisponíveis</SelectItem>
                     </SelectContent>
