@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Configuração base da API
-const API_BASE_URL = 'https://8000-iu935cfvhijeun2xmq3f3-d0b46a98.manusvm.computer/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
 // Criar instância do axios
 const api = axios.create({
