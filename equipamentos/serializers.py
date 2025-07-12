@@ -1,137 +1,233 @@
 from rest_framework import serializers
-from .models import Categoria, Equipamento
+from .models import Categoria, Equipamento, Orcamento, ItemOrcamento, Reserva, ItemReserva
+from django.utils import timezone
+from datetime import date
 
 
 class CategoriaSerializer(serializers.ModelSerializer):
-    """
-    Serializer para Categoria de equipamentos
-    """
     class Meta:
         model = Categoria
         fields = ['id', 'nome', 'descricao', 'ativo']
-        read_only_fields = ['id']
 
 
-class EquipamentoListSerializer(serializers.ModelSerializer):
-    """
-    Serializer para listagem de equipamentos (campos resumidos)
-    """
+class EquipamentoSerializer(serializers.ModelSerializer):
     categoria_nome = serializers.CharField(source='categoria.nome', read_only=True)
     disponivel = serializers.BooleanField(read_only=True)
     
     class Meta:
         model = Equipamento
         fields = [
-            'id', 'nome', 'categoria', 'categoria_nome', 'marca', 'modelo',
-            'valor_diaria', 'estado', 'quantidade_disponivel', 'disponivel',
-            'imagem_principal'
-        ]
-        read_only_fields = ['id', 'disponivel']
-
-
-class EquipamentoDetailSerializer(serializers.ModelSerializer):
-    """
-    Serializer para detalhes completos do equipamento
-    """
-    categoria_nome = serializers.CharField(source='categoria.nome', read_only=True)
-    disponivel = serializers.BooleanField(read_only=True)
-    
-    class Meta:
-        model = Equipamento
-        fields = [
-            'id', 'nome', 'categoria', 'categoria_nome', 'descricao',
-            'marca', 'modelo', 'especificacoes_tecnicas', 'valor_diaria',
-            'valor_semanal', 'valor_mensal', 'estado', 'quantidade_disponivel',
-            'quantidade_total', 'numero_serie', 'observacoes',
-            'imagem_principal', 'imagens_adicionais', 'disponivel',
+            'id', 'nome', 'categoria', 'categoria_nome', 'descricao', 'marca', 'modelo',
+            'especificacoes_tecnicas', 'valor_diaria', 'valor_semanal', 'valor_mensal',
+            'estado', 'quantidade_disponivel', 'quantidade_total', 'numero_serie',
+            'observacoes', 'imagem_principal', 'imagens_adicionais', 'disponivel',
             'data_cadastro', 'data_atualizacao'
         ]
-        read_only_fields = ['id', 'disponivel', 'data_cadastro', 'data_atualizacao']
+        read_only_fields = ['data_cadastro', 'data_atualizacao']
+    
+    def validate_quantidade_disponivel(self, value):
+        """Valida que a quantidade disponível não seja maior que a total"""
+        quantidade_total = self.initial_data.get('quantidade_total')
+        if quantidade_total and value > quantidade_total:
+            raise serializers.ValidationError(
+                "A quantidade disponível não pode ser maior que a quantidade total."
+            )
+        return value
+    
+    def validate_valor_diaria(self, value):
+        """Valida que o valor da diária seja positivo"""
+        if value <= 0:
+            raise serializers.ValidationError("O valor da diária deve ser maior que zero.")
+        return value
 
 
-class EquipamentoCreateUpdateSerializer(serializers.ModelSerializer):
-    """
-    Serializer para criação e atualização de equipamentos
-    """
+class EquipamentoCreateSerializer(serializers.ModelSerializer):
+    """Serializer específico para criação de equipamentos"""
+    
     class Meta:
         model = Equipamento
         fields = [
             'nome', 'categoria', 'descricao', 'marca', 'modelo',
-            'especificacoes_tecnicas', 'valor_diaria', 'valor_semanal',
-            'valor_mensal', 'estado', 'quantidade_disponivel',
-            'quantidade_total', 'numero_serie', 'observacoes',
-            'imagem_principal', 'imagens_adicionais'
+            'especificacoes_tecnicas', 'valor_diaria', 'valor_semanal', 'valor_mensal',
+            'estado', 'quantidade_disponivel', 'quantidade_total', 'numero_serie',
+            'observacoes', 'imagem_principal', 'imagens_adicionais'
         ]
     
-    def validate(self, attrs):
-        """Validações customizadas"""
-        # Validar que quantidade_disponivel não seja maior que quantidade_total
-        quantidade_disponivel = attrs.get('quantidade_disponivel', 0)
-        quantidade_total = attrs.get('quantidade_total', 1)
+    def validate(self, data):
+        """Validações gerais do equipamento"""
+        if data.get('quantidade_disponivel', 0) > data.get('quantidade_total', 0):
+            raise serializers.ValidationError({
+                'quantidade_disponivel': 'A quantidade disponível não pode ser maior que a quantidade total.'
+            })
         
-        if quantidade_disponivel > quantidade_total:
-            raise serializers.ValidationError(
-                "Quantidade disponível não pode ser maior que a quantidade total."
-            )
+        if data.get('valor_diaria', 0) <= 0:
+            raise serializers.ValidationError({
+                'valor_diaria': 'O valor da diária deve ser maior que zero.'
+            })
         
-        # Validar valores
-        valor_diaria = attrs.get('valor_diaria')
-        valor_semanal = attrs.get('valor_semanal')
-        valor_mensal = attrs.get('valor_mensal')
-        
-        if valor_semanal and valor_semanal <= valor_diaria * 7:
-            raise serializers.ValidationError(
-                "Valor semanal deve ser menor que 7 vezes o valor da diária para ser vantajoso."
-            )
-        
-        if valor_mensal and valor_mensal <= valor_diaria * 30:
-            raise serializers.ValidationError(
-                "Valor mensal deve ser menor que 30 vezes o valor da diária para ser vantajoso."
-            )
-        
-        return attrs
+        return data
+
+
+class ItemOrcamentoSerializer(serializers.ModelSerializer):
+    equipamento_nome = serializers.CharField(source='equipamento.nome', read_only=True)
+    equipamento_marca = serializers.CharField(source='equipamento.marca', read_only=True)
+    equipamento_modelo = serializers.CharField(source='equipamento.modelo', read_only=True)
     
-    def validate_numero_serie(self, value):
-        """Validar número de série único"""
-        if value:
-            queryset = Equipamento.objects.filter(numero_serie=value)
-            if self.instance:
-                queryset = queryset.exclude(id=self.instance.id)
-            if queryset.exists():
-                raise serializers.ValidationError("Este número de série já está cadastrado.")
+    class Meta:
+        model = ItemOrcamento
+        fields = [
+            'id', 'equipamento', 'equipamento_nome', 'equipamento_marca', 'equipamento_modelo',
+            'quantidade', 'modalidade', 'periodo', 'data_uso', 'valor_unitario', 'valor_total'
+        ]
+        read_only_fields = ['valor_unitario', 'valor_total']
+    
+    def validate_data_uso(self, value):
+        """Valida que a data de uso seja futura"""
+        if value <= date.today():
+            raise serializers.ValidationError("A data de uso deve ser futura.")
+        return value
+    
+    def validate(self, data):
+        """Validações do item do orçamento"""
+        equipamento = data.get('equipamento')
+        quantidade = data.get('quantidade', 0)
+        modalidade = data.get('modalidade')
+        
+        # Verificar disponibilidade
+        if equipamento and quantidade > equipamento.quantidade_disponivel:
+            raise serializers.ValidationError({
+                'quantidade': f'Quantidade solicitada ({quantidade}) maior que a disponível ({equipamento.quantidade_disponivel}).'
+            })
+        
+        # Verificar se a modalidade tem valor definido
+        if equipamento and modalidade:
+            if modalidade == 'semanal' and not equipamento.valor_semanal:
+                raise serializers.ValidationError({
+                    'modalidade': 'Este equipamento não possui valor semanal definido.'
+                })
+            elif modalidade == 'mensal' and not equipamento.valor_mensal:
+                raise serializers.ValidationError({
+                    'modalidade': 'Este equipamento não possui valor mensal definido.'
+                })
+        
+        return data
+
+
+class ItemOrcamentoCreateSerializer(serializers.ModelSerializer):
+    """Serializer para criação de itens do orçamento"""
+    
+    class Meta:
+        model = ItemOrcamento
+        fields = ['equipamento', 'quantidade', 'modalidade', 'periodo', 'data_uso']
+    
+    def validate_data_uso(self, value):
+        """Valida que a data de uso seja futura"""
+        if value <= date.today():
+            raise serializers.ValidationError("A data de uso deve ser futura.")
         return value
 
 
-class EquipamentoCalculoValorSerializer(serializers.Serializer):
-    """
-    Serializer para cálculo de valor por período
-    """
-    equipamento_id = serializers.IntegerField(required=True)
-    dias = serializers.IntegerField(required=True, min_value=1)
+class OrcamentoSerializer(serializers.ModelSerializer):
+    itens = ItemOrcamentoSerializer(many=True, read_only=True)
+    cliente_nome = serializers.CharField(source='cliente.nome_completo', read_only=True)
     
-    def validate_equipamento_id(self, value):
-        """Validar se equipamento existe"""
-        try:
-            equipamento = Equipamento.objects.get(id=value)
-            return value
-        except Equipamento.DoesNotExist:
-            raise serializers.ValidationError("Equipamento não encontrado.")
+    class Meta:
+        model = Orcamento
+        fields = [
+            'id', 'cliente', 'cliente_nome', 'status', 'valor_total', 'observacoes',
+            'data_criacao', 'data_atualizacao', 'itens'
+        ]
+        read_only_fields = ['cliente', 'valor_total', 'data_criacao', 'data_atualizacao']
+
+
+class ItemReservaSerializer(serializers.ModelSerializer):
+    equipamento_nome = serializers.CharField(source='equipamento.nome', read_only=True)
+    equipamento_marca = serializers.CharField(source='equipamento.marca', read_only=True)
+    equipamento_modelo = serializers.CharField(source='equipamento.modelo', read_only=True)
     
-    def get_valor_calculado(self):
-        """Calcular valor para o período especificado"""
-        equipamento_id = self.validated_data['equipamento_id']
-        dias = self.validated_data['dias']
-        
-        equipamento = Equipamento.objects.get(id=equipamento_id)
-        valor_total = equipamento.calcular_valor_periodo(dias)
-        
-        return {
-            'equipamento_id': equipamento_id,
-            'equipamento_nome': equipamento.nome,
-            'dias': dias,
-            'valor_diaria': equipamento.valor_diaria,
-            'valor_semanal': equipamento.valor_semanal,
-            'valor_mensal': equipamento.valor_mensal,
-            'valor_total_calculado': valor_total
-        }
+    class Meta:
+        model = ItemReserva
+        fields = [
+            'id', 'equipamento', 'equipamento_nome', 'equipamento_marca', 'equipamento_modelo',
+            'quantidade', 'modalidade', 'periodo', 'valor_unitario', 'valor_total'
+        ]
+
+
+class ReservaSerializer(serializers.ModelSerializer):
+    itens = ItemReservaSerializer(many=True, read_only=True)
+    cliente_nome = serializers.CharField(source='cliente.nome_completo', read_only=True)
+    
+    class Meta:
+        model = Reserva
+        fields = [
+            'id', 'cliente', 'cliente_nome', 'orcamento', 'status', 'data_uso',
+            'local_evento', 'observacoes', 'valor_total', 'data_criacao',
+            'data_atualizacao', 'data_aprovacao', 'aprovado_por', 'itens'
+        ]
+        read_only_fields = ['cliente', 'data_criacao', 'data_atualizacao', 'data_aprovacao', 'aprovado_por']
+
+
+class ReservaCreateSerializer(serializers.ModelSerializer):
+    """Serializer para criação de reservas"""
+    
+    class Meta:
+        model = Reserva
+        fields = ['orcamento', 'data_uso', 'local_evento', 'observacoes']
+    
+    def validate_data_uso(self, value):
+        """Valida que a data de uso seja futura"""
+        if value <= date.today():
+            raise serializers.ValidationError("A data de uso deve ser futura.")
+        return value
+    
+    def validate_local_evento(self, value):
+        """Valida que o local do evento seja informado"""
+        if not value or not value.strip():
+            raise serializers.ValidationError("O local do evento é obrigatório.")
+        return value.strip()
+
+
+# Serializers para listagem simplificada
+class EquipamentoListSerializer(serializers.ModelSerializer):
+    """Serializer simplificado para listagem de equipamentos"""
+    categoria_nome = serializers.CharField(source='categoria.nome', read_only=True)
+    disponivel = serializers.BooleanField(read_only=True)
+    
+    class Meta:
+        model = Equipamento
+        fields = [
+            'id', 'nome', 'categoria_nome', 'marca', 'modelo', 'valor_diaria',
+            'quantidade_disponivel', 'estado', 'imagem_principal', 'disponivel'
+        ]
+
+
+class OrcamentoListSerializer(serializers.ModelSerializer):
+    """Serializer simplificado para listagem de orçamentos"""
+    cliente_nome = serializers.CharField(source='cliente.nome_completo', read_only=True)
+    total_itens = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Orcamento
+        fields = [
+            'id', 'cliente_nome', 'status', 'valor_total', 'total_itens', 'data_criacao'
+        ]
+    
+    def get_total_itens(self, obj):
+        return obj.itens.count()
+
+
+class ReservaListSerializer(serializers.ModelSerializer):
+    """Serializer simplificado para listagem de reservas"""
+    cliente_nome = serializers.CharField(source='cliente.nome_completo', read_only=True)
+    total_itens = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Reserva
+        fields = [
+            'id', 'cliente_nome', 'status', 'data_uso', 'local_evento',
+            'valor_total', 'total_itens', 'data_criacao'
+        ]
+    
+    def get_total_itens(self, obj):
+        return obj.itens.count()
 

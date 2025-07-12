@@ -1,111 +1,138 @@
 from django.contrib import admin
-from .models import Categoria, Equipamento
+from .models import Categoria, Equipamento, Orcamento, ItemOrcamento, Reserva, ItemReserva
 
 
 @admin.register(Categoria)
 class CategoriaAdmin(admin.ModelAdmin):
-    """
-    Admin para o modelo Categoria
-    """
-    list_display = ['nome', 'ativo', 'equipamentos_count']
+    list_display = ['nome', 'ativo']
     list_filter = ['ativo']
-    search_fields = ['nome', 'descricao']
+    search_fields = ['nome']
     ordering = ['nome']
-    
-    def equipamentos_count(self, obj):
-        """Contar equipamentos na categoria"""
-        return obj.equipamentos.count()
-    equipamentos_count.short_description = 'Qtd Equipamentos'
+
+
+class ItemOrcamentoInline(admin.TabularInline):
+    model = ItemOrcamento
+    extra = 0
+    readonly_fields = ['valor_unitario', 'valor_total']
+
+
+class ItemReservaInline(admin.TabularInline):
+    model = ItemReserva
+    extra = 0
+    readonly_fields = ['valor_unitario', 'valor_total']
 
 
 @admin.register(Equipamento)
 class EquipamentoAdmin(admin.ModelAdmin):
-    """
-    Admin para o modelo Equipamento
-    """
     list_display = [
-        'nome', 'categoria', 'marca', 'modelo', 'valor_diaria',
-        'estado', 'quantidade_disponivel', 'quantidade_total', 'disponivel'
+        'nome', 'categoria', 'marca', 'modelo', 'valor_diaria', 
+        'quantidade_disponivel', 'quantidade_total', 'estado'
     ]
-    list_filter = [
-        'categoria', 'estado', 'marca', 'data_cadastro'
-    ]
-    search_fields = [
-        'nome', 'descricao', 'marca', 'modelo', 'numero_serie'
-    ]
+    list_filter = ['categoria', 'estado', 'marca']
+    search_fields = ['nome', 'marca', 'modelo', 'descricao']
     ordering = ['categoria__nome', 'nome']
+    readonly_fields = ['data_cadastro', 'data_atualizacao']
     
     fieldsets = (
         ('Informações Básicas', {
-            'fields': (
-                'nome', 'categoria', 'descricao', 'marca', 'modelo'
-            )
-        }),
-        ('Especificações', {
-            'fields': ('especificacoes_tecnicas', 'numero_serie'),
-            'classes': ('collapse',)
+            'fields': ('nome', 'categoria', 'marca', 'modelo', 'descricao', 'numero_serie')
         }),
         ('Valores', {
             'fields': ('valor_diaria', 'valor_semanal', 'valor_mensal')
         }),
-        ('Disponibilidade', {
-            'fields': (
-                'estado', 'quantidade_disponivel', 'quantidade_total'
-            )
+        ('Estoque e Estado', {
+            'fields': ('quantidade_total', 'quantidade_disponivel', 'estado')
         }),
-        ('Imagens', {
-            'fields': ('imagem_principal', 'imagens_adicionais'),
+        ('Especificações e Imagens', {
+            'fields': ('especificacoes_tecnicas', 'imagem_principal', 'imagens_adicionais'),
             'classes': ('collapse',)
         }),
         ('Observações', {
             'fields': ('observacoes',),
             'classes': ('collapse',)
         }),
-        ('Datas', {
+        ('Timestamps', {
             'fields': ('data_cadastro', 'data_atualizacao'),
             'classes': ('collapse',)
         }),
     )
+
+
+@admin.register(Orcamento)
+class OrcamentoAdmin(admin.ModelAdmin):
+    list_display = ['id', 'cliente', 'status', 'valor_total', 'data_criacao']
+    list_filter = ['status', 'data_criacao']
+    search_fields = ['cliente__nome_completo', 'cliente__email']
+    ordering = ['-data_criacao']
+    readonly_fields = ['valor_total', 'data_criacao', 'data_atualizacao']
+    inlines = [ItemOrcamentoInline]
     
-    readonly_fields = ['data_cadastro', 'data_atualizacao']
+    def get_readonly_fields(self, request, obj=None):
+        if obj and obj.status != 'rascunho':
+            return self.readonly_fields + ['cliente', 'status']
+        return self.readonly_fields
+
+
+@admin.register(Reserva)
+class ReservaAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 'cliente', 'status', 'data_uso', 'local_evento', 
+        'valor_total', 'data_criacao'
+    ]
+    list_filter = ['status', 'data_uso', 'data_criacao']
+    search_fields = ['cliente__nome_completo', 'cliente__email', 'local_evento']
+    ordering = ['-data_criacao']
+    readonly_fields = ['data_criacao', 'data_atualizacao', 'data_aprovacao']
+    inlines = [ItemReservaInline]
     
-    def disponivel(self, obj):
-        """Mostrar se está disponível"""
-        return obj.disponivel
-    disponivel.boolean = True
-    disponivel.short_description = 'Disponível'
+    fieldsets = (
+        ('Informações da Reserva', {
+            'fields': ('cliente', 'orcamento', 'status', 'data_uso', 'local_evento')
+        }),
+        ('Valores', {
+            'fields': ('valor_total',)
+        }),
+        ('Observações', {
+            'fields': ('observacoes',),
+            'classes': ('collapse',)
+        }),
+        ('Controle Administrativo', {
+            'fields': ('aprovado_por', 'data_aprovacao'),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('data_criacao', 'data_atualizacao'),
+            'classes': ('collapse',)
+        }),
+    )
     
-    def get_queryset(self, request):
-        """Otimizar consultas"""
-        return super().get_queryset(request).select_related('categoria')
-    
-    # Ações personalizadas
-    actions = ['marcar_como_disponivel', 'marcar_como_manutencao', 'marcar_como_inativo']
-    
-    def marcar_como_disponivel(self, request, queryset):
-        """Marcar equipamentos como disponíveis"""
-        updated = queryset.update(estado='disponivel')
-        self.message_user(
-            request, 
-            f'{updated} equipamento(s) marcado(s) como disponível(is).'
-        )
-    marcar_como_disponivel.short_description = "Marcar como disponível"
-    
-    def marcar_como_manutencao(self, request, queryset):
-        """Marcar equipamentos em manutenção"""
-        updated = queryset.update(estado='manutencao')
-        self.message_user(
-            request, 
-            f'{updated} equipamento(s) marcado(s) como em manutenção.'
-        )
-    marcar_como_manutencao.short_description = "Marcar como em manutenção"
-    
-    def marcar_como_inativo(self, request, queryset):
-        """Marcar equipamentos como inativos"""
-        updated = queryset.update(estado='inativo')
-        self.message_user(
-            request, 
-            f'{updated} equipamento(s) marcado(s) como inativo(s).'
-        )
-    marcar_como_inativo.short_description = "Marcar como inativo"
+    def save_model(self, request, obj, form, change):
+        if change and 'status' in form.changed_data:
+            if obj.status == 'aprovada' and not obj.aprovado_por:
+                obj.aprovado_por = request.user
+                from django.utils import timezone
+                obj.data_aprovacao = timezone.now()
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(ItemOrcamento)
+class ItemOrcamentoAdmin(admin.ModelAdmin):
+    list_display = [
+        'orcamento', 'equipamento', 'quantidade', 'modalidade', 
+        'periodo', 'valor_total'
+    ]
+    list_filter = ['modalidade', 'data_uso']
+    search_fields = ['equipamento__nome', 'orcamento__cliente__nome_completo']
+    readonly_fields = ['valor_unitario', 'valor_total']
+
+
+@admin.register(ItemReserva)
+class ItemReservaAdmin(admin.ModelAdmin):
+    list_display = [
+        'reserva', 'equipamento', 'quantidade', 'modalidade', 
+        'periodo', 'valor_total'
+    ]
+    list_filter = ['modalidade']
+    search_fields = ['equipamento__nome', 'reserva__cliente__nome_completo']
+    readonly_fields = ['valor_unitario', 'valor_total']
 
