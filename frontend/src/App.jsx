@@ -10,11 +10,12 @@ import Perfil from './components/Perfil';
 import Equipamentos from './components/Equipamentos';
 import EquipamentoDetalhes from './components/EquipamentoDetalhes';
 import CadastrarEquipamento from './components/CadastrarEquipamento';
-import EditarEquipamento from './components/EditarEquipamento'; // Importar o novo componente
+import EditarEquipamento from './components/EditarEquipamento';
 import Orcamentos from './components/Orcamentos';
 import CriarOrcamento from './components/CriarOrcamento';
 import OrcamentoDetalhes from './components/OrcamentoDetalhes';
 import Reservas from './components/Reservas';
+import ReservaDetalhes from './components/ReservaDetalhes'; // Importar o novo componente
 
 function App() {
   return (
@@ -31,7 +32,7 @@ function App() {
             <Route path="/equipamentos" element={<Equipamentos />} />
             <Route path="/equipamentos/:id" element={<EquipamentoDetalhes />} />
             <Route path="/equipamentos/cadastrar" element={<CadastrarEquipamento />} />
-            <Route path="/equipamentos/editar/:id" element={<EditarEquipamento />} /> {/* Nova rota */}
+            <Route path="/equipamentos/editar/:id" element={<EditarEquipamento />} />
 
             <Route path="/orcamentos" element={<Orcamentos />} />
             <Route path="/orcamentos/criar" element={<CriarOrcamento />} />
@@ -39,9 +40,10 @@ function App() {
             <Route path="/orcamentos/:id" element={<OrcamentoDetalhes />} />
 
             <Route path="/reservas" element={<Reservas />} />
+            <Route path="/reservas/:id" element={<ReservaDetalhes />} /> {/* Nova rota */}
           </Route>
 
-          <Route path="*" element={<Login />} /> {/* Redireciona para login se a rota não for encontrada */}
+          <Route path="*" element={<Login />} />
         </Routes>
       </AuthProvider>
     </Router>
