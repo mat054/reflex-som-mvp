@@ -1,67 +1,70 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { equipamentoService } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 import Layout from './Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
 import { 
-  Package, 
-  Save,
   ArrowLeft,
-  AlertCircle,
-  CheckCircle,
+  Save,
   Plus,
-  X
+  Trash2,
+  Package,
+  DollarSign,
+  Settings,
+  Image as ImageIcon,
+  Info
 } from 'lucide-react';
 
 const CadastrarEquipamento = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
+  const [errors, setErrors] = useState({});
   
   const [formData, setFormData] = useState({
     nome: '',
     categoria: '',
-    descricao: '',
     marca: '',
     modelo: '',
-    especificacoes_tecnicas: {},
+    descricao: '',
+    numero_serie: '',
     valor_diaria: '',
     valor_semanal: '',
     valor_mensal: '',
-    estado: 'disponivel',
-    quantidade_disponivel: '1',
     quantidade_total: '1',
-    numero_serie: '',
-    observacoes: '',
+    quantidade_disponivel: '1',
+    estado: 'disponivel',
     imagem_principal: '',
-    imagens_adicionais: []
+    observacoes: '',
+    especificacoes_tecnicas: {}
   });
 
-  const [especificacaoTemp, setEspecificacaoTemp] = useState({ chave: '', valor: '' });
-  const [imagemTemp, setImagemTemp] = useState('');
+  const [especificacoes, setEspecificacoes] = useState([{ chave: '', valor: '' }]);
+  const [imagensAdicionais, setImagensAdicionais] = useState(['']);
 
+  // Verificar se o usuário é staff
   useEffect(() => {
+    if (!user?.is_staff) {
+      navigate('/equipamentos');
+      return;
+    }
     loadCategorias();
-  }, []);
+  }, [user, navigate]);
 
   const loadCategorias = async () => {
     try {
-      setLoading(true);
       const response = await equipamentoService.listarCategorias();
-      setCategorias(Array.isArray(response) ? response : response.results || response.categorias || []);
+      setCategorias(Array.isArray(response) ? response : response.results || []);
     } catch (error) {
       console.error('Erro ao carregar categorias:', error);
-      setMessage({ type: 'error', text: 'Erro ao carregar categorias' });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -70,69 +73,85 @@ const CadastrarEquipamento = () => {
       ...prev,
       [field]: value
     }));
-  };
-
-  const handleEspecificacaoAdd = () => {
-    if (especificacaoTemp.chave && especificacaoTemp.valor) {
-      setFormData(prev => ({
+    
+    // Limpar erro do campo quando o usuário começar a digitar
+    if (errors[field]) {
+      setErrors(prev => ({
         ...prev,
-        especificacoes_tecnicas: {
-          ...prev.especificacoes_tecnicas,
-          [especificacaoTemp.chave]: especificacaoTemp.valor
-        }
+        [field]: null
       }));
-      setEspecificacaoTemp({ chave: '', valor: '' });
     }
   };
 
-  const handleEspecificacaoRemove = (chave) => {
-    setFormData(prev => {
-      const newEspecificacoes = { ...prev.especificacoes_tecnicas };
-      delete newEspecificacoes[chave];
-      return {
-        ...prev,
-        especificacoes_tecnicas: newEspecificacoes
-      };
-    });
+  const handleEspecificacaoChange = (index, field, value) => {
+    const newEspecificacoes = [...especificacoes];
+    newEspecificacoes[index][field] = value;
+    setEspecificacoes(newEspecificacoes);
   };
 
-  const handleImagemAdd = () => {
-    if (imagemTemp.trim()) {
-      setFormData(prev => ({
-        ...prev,
-        imagens_adicionais: [...prev.imagens_adicionais, imagemTemp.trim()]
-      }));
-      setImagemTemp('');
+  const addEspecificacao = () => {
+    setEspecificacoes([...especificacoes, { chave: '', valor: '' }]);
+  };
+
+  const removeEspecificacao = (index) => {
+    if (especificacoes.length > 1) {
+      setEspecificacoes(especificacoes.filter((_, i) => i !== index));
     }
   };
 
-  const handleImagemRemove = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      imagens_adicionais: prev.imagens_adicionais.filter((_, i) => i !== index)
-    }));
+  const handleImagemAdicionalChange = (index, value) => {
+    const newImagens = [...imagensAdicionais];
+    newImagens[index] = value;
+    setImagensAdicionais(newImagens);
+  };
+
+  const addImagemAdicional = () => {
+    setImagensAdicionais([...imagensAdicionais, '']);
+  };
+
+  const removeImagemAdicional = (index) => {
+    if (imagensAdicionais.length > 1) {
+      setImagensAdicionais(imagensAdicionais.filter((_, i) => i !== index));
+    }
   };
 
   const validateForm = () => {
-    const requiredFields = ['nome', 'categoria', 'descricao', 'marca', 'modelo', 'valor_diaria'];
-    const missingFields = requiredFields.filter(field => !formData[field]);
+    const newErrors = {};
+
+    // Campos obrigatórios
+    if (!formData.nome.trim()) newErrors.nome = 'Nome é obrigatório';
+    if (!formData.categoria) newErrors.categoria = 'Categoria é obrigatória';
+    if (!formData.marca.trim()) newErrors.marca = 'Marca é obrigatória';
+    if (!formData.modelo.trim()) newErrors.modelo = 'Modelo é obrigatório';
+    if (!formData.descricao.trim()) newErrors.descricao = 'Descrição é obrigatória';
+    if (!formData.valor_diaria || parseFloat(formData.valor_diaria) <= 0) {
+      newErrors.valor_diaria = 'Valor da diária deve ser maior que zero';
+    }
+
+    // Validações de quantidade
+    const qtdTotal = parseInt(formData.quantidade_total);
+    const qtdDisponivel = parseInt(formData.quantidade_disponivel);
     
-    if (missingFields.length > 0) {
-      setMessage({ type: 'error', text: `Campos obrigatórios não preenchidos: ${missingFields.join(', ')}` });
-      return false;
+    if (!qtdTotal || qtdTotal < 1) {
+      newErrors.quantidade_total = 'Quantidade total deve ser maior que zero';
+    }
+    if (!qtdDisponivel || qtdDisponivel < 0) {
+      newErrors.quantidade_disponivel = 'Quantidade disponível deve ser maior ou igual a zero';
+    }
+    if (qtdDisponivel > qtdTotal) {
+      newErrors.quantidade_disponivel = 'Quantidade disponível não pode ser maior que a total';
     }
 
-    if (parseFloat(formData.valor_diaria) <= 0) {
-      setMessage({ type: 'error', text: 'O valor da diária deve ser maior que zero' });
-      return false;
+    // Validações de valores opcionais
+    if (formData.valor_semanal && parseFloat(formData.valor_semanal) <= 0) {
+      newErrors.valor_semanal = 'Valor semanal deve ser maior que zero';
+    }
+    if (formData.valor_mensal && parseFloat(formData.valor_mensal) <= 0) {
+      newErrors.valor_mensal = 'Valor mensal deve ser maior que zero';
     }
 
-    if (parseInt(formData.quantidade_total) < parseInt(formData.quantidade_disponivel)) {
-      setMessage({ type: 'error', text: 'A quantidade disponível não pode ser maior que a quantidade total' });
-      return false;
-    }
-
-    return true;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
@@ -142,90 +161,70 @@ const CadastrarEquipamento = () => {
       return;
     }
 
+    setLoading(true);
+    
     try {
-      setSubmitting(true);
-      setMessage({ type: '', text: '' });
+      // Preparar especificações técnicas
+      const especificacoesTecnicas = {};
+      especificacoes.forEach(spec => {
+        if (spec.chave.trim() && spec.valor.trim()) {
+          especificacoesTecnicas[spec.chave.trim()] = spec.valor.trim();
+        }
+      });
 
-      // Preparar dados para envio
-      const dadosParaEnvio = {
+      // Preparar imagens adicionais
+      const imagensAdicionaisLimpas = imagensAdicionais
+        .filter(img => img.trim())
+        .map(img => img.trim());
+
+      const equipamentoData = {
         ...formData,
+        especificacoes_tecnicas: especificacoesTecnicas,
+        imagens_adicionais: imagensAdicionaisLimpas,
         valor_diaria: parseFloat(formData.valor_diaria),
         valor_semanal: formData.valor_semanal ? parseFloat(formData.valor_semanal) : null,
         valor_mensal: formData.valor_mensal ? parseFloat(formData.valor_mensal) : null,
-        quantidade_disponivel: parseInt(formData.quantidade_disponivel),
         quantidade_total: parseInt(formData.quantidade_total),
-        categoria: parseInt(formData.categoria)
+        quantidade_disponivel: parseInt(formData.quantidade_disponivel)
       };
 
-      const response = await equipamentoService.criar(dadosParaEnvio);
+      await equipamentoService.criar(equipamentoData);
       
-      setMessage({ type: 'success', text: 'Equipamento cadastrado com sucesso!' });
-      
-      // Redirecionar após 2 segundos
-      setTimeout(() => {
-        navigate('/equipamentos');
-      }, 2000);
-
+      navigate('/equipamentos', {
+        state: { message: 'Equipamento cadastrado com sucesso!' }
+      });
     } catch (error) {
       console.error('Erro ao cadastrar equipamento:', error);
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.detail || 
-                          'Erro ao cadastrar equipamento';
-      setMessage({ type: 'error', text: errorMessage });
+      
+      if (error.response?.data) {
+        setErrors(error.response.data);
+      } else {
+        setErrors({ general: 'Erro ao cadastrar equipamento. Tente novamente.' });
+      }
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
-
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value || 0);
-  };
-
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-        </div>
-      </Layout>
-    );
-  }
 
   return (
     <Layout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button variant="outline" size="sm" onClick={() => navigate('/equipamentos')}>
+        <div className="flex items-center space-x-4">
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/equipamentos">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Cadastrar Equipamento</h1>
-              <p className="text-gray-600 mt-1">
-                Adicione um novo equipamento ao catálogo
-              </p>
-            </div>
+            </Link>
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Cadastrar Equipamento</h1>
+            <p className="text-gray-600 mt-1">
+              Adicione um novo equipamento ao catálogo
+            </p>
           </div>
         </div>
 
-        {/* Mensagens */}
-        {message.text && (
-          <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
-            {message.type === 'error' ? (
-              <AlertCircle className="h-4 w-4" />
-            ) : (
-              <CheckCircle className="h-4 w-4" />
-            )}
-            <AlertDescription>{message.text}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Formulário */}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Informações Básicas */}
           <Card>
@@ -239,6 +238,12 @@ const CadastrarEquipamento = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {errors.general && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                  <p className="text-red-600 text-sm">{errors.general}</p>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="nome">Nome do Equipamento *</Label>
@@ -246,9 +251,10 @@ const CadastrarEquipamento = () => {
                     id="nome"
                     value={formData.nome}
                     onChange={(e) => handleInputChange('nome', e.target.value)}
-                    placeholder="Ex: Caixa de Som JBL"
-                    required
+                    placeholder="Ex: Caixa de Som JBL EON615"
+                    className={errors.nome ? 'border-red-500' : ''}
                   />
+                  {errors.nome && <p className="text-red-500 text-sm">{errors.nome}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -256,9 +262,8 @@ const CadastrarEquipamento = () => {
                   <Select
                     value={formData.categoria}
                     onValueChange={(value) => handleInputChange('categoria', value)}
-                    required
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={errors.categoria ? 'border-red-500' : ''}>
                       <SelectValue placeholder="Selecione uma categoria" />
                     </SelectTrigger>
                     <SelectContent>
@@ -269,8 +274,11 @@ const CadastrarEquipamento = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                  {errors.categoria && <p className="text-red-500 text-sm">{errors.categoria}</p>}
                 </div>
+              </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="marca">Marca *</Label>
                   <Input
@@ -278,8 +286,9 @@ const CadastrarEquipamento = () => {
                     value={formData.marca}
                     onChange={(e) => handleInputChange('marca', e.target.value)}
                     placeholder="Ex: JBL"
-                    required
+                    className={errors.marca ? 'border-red-500' : ''}
                   />
+                  {errors.marca && <p className="text-red-500 text-sm">{errors.marca}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -288,9 +297,10 @@ const CadastrarEquipamento = () => {
                     id="modelo"
                     value={formData.modelo}
                     onChange={(e) => handleInputChange('modelo', e.target.value)}
-                    placeholder="Ex: EON 615"
-                    required
+                    placeholder="Ex: EON615"
+                    className={errors.modelo ? 'border-red-500' : ''}
                   />
+                  {errors.modelo && <p className="text-red-500 text-sm">{errors.modelo}</p>}
                 </div>
               </div>
 
@@ -300,10 +310,11 @@ const CadastrarEquipamento = () => {
                   id="descricao"
                   value={formData.descricao}
                   onChange={(e) => handleInputChange('descricao', e.target.value)}
-                  placeholder="Descreva o equipamento, suas características e funcionalidades..."
-                  rows={4}
-                  required
+                  placeholder="Descreva o equipamento, suas características e aplicações..."
+                  rows={3}
+                  className={errors.descricao ? 'border-red-500' : ''}
                 />
+                {errors.descricao && <p className="text-red-500 text-sm">{errors.descricao}</p>}
               </div>
 
               <div className="space-y-2">
@@ -312,34 +323,38 @@ const CadastrarEquipamento = () => {
                   id="numero_serie"
                   value={formData.numero_serie}
                   onChange={(e) => handleInputChange('numero_serie', e.target.value)}
-                  placeholder="Número de série do equipamento"
+                  placeholder="Ex: JBL123456789"
                 />
               </div>
             </CardContent>
           </Card>
 
-          {/* Valores */}
+          {/* Valores de Locação */}
           <Card>
             <CardHeader>
-              <CardTitle>Valores de Locação</CardTitle>
+              <CardTitle className="flex items-center space-x-2">
+                <DollarSign className="h-5 w-5" />
+                <span>Valores de Locação</span>
+              </CardTitle>
               <CardDescription>
-                Defina os valores para diferentes períodos de locação
+                Defina os preços para diferentes modalidades
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="valor_diaria">Valor Diária (R$) *</Label>
+                  <Label htmlFor="valor_diaria">Valor Diário (R$) *</Label>
                   <Input
                     id="valor_diaria"
                     type="number"
                     step="0.01"
-                    min="0.01"
+                    min="0"
                     value={formData.valor_diaria}
                     onChange={(e) => handleInputChange('valor_diaria', e.target.value)}
                     placeholder="0,00"
-                    required
+                    className={errors.valor_diaria ? 'border-red-500' : ''}
                   />
+                  {errors.valor_diaria && <p className="text-red-500 text-sm">{errors.valor_diaria}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -348,11 +363,13 @@ const CadastrarEquipamento = () => {
                     id="valor_semanal"
                     type="number"
                     step="0.01"
-                    min="0.01"
+                    min="0"
                     value={formData.valor_semanal}
                     onChange={(e) => handleInputChange('valor_semanal', e.target.value)}
                     placeholder="0,00"
+                    className={errors.valor_semanal ? 'border-red-500' : ''}
                   />
+                  {errors.valor_semanal && <p className="text-red-500 text-sm">{errors.valor_semanal}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -361,11 +378,13 @@ const CadastrarEquipamento = () => {
                     id="valor_mensal"
                     type="number"
                     step="0.01"
-                    min="0.01"
+                    min="0"
                     value={formData.valor_mensal}
                     onChange={(e) => handleInputChange('valor_mensal', e.target.value)}
                     placeholder="0,00"
+                    className={errors.valor_mensal ? 'border-red-500' : ''}
                   />
+                  {errors.valor_mensal && <p className="text-red-500 text-sm">{errors.valor_mensal}</p>}
                 </div>
               </div>
             </CardContent>
@@ -376,7 +395,7 @@ const CadastrarEquipamento = () => {
             <CardHeader>
               <CardTitle>Quantidade e Estado</CardTitle>
               <CardDescription>
-                Configure a quantidade disponível e o estado do equipamento
+                Controle de estoque e disponibilidade
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -389,8 +408,9 @@ const CadastrarEquipamento = () => {
                     min="1"
                     value={formData.quantidade_total}
                     onChange={(e) => handleInputChange('quantidade_total', e.target.value)}
-                    required
+                    className={errors.quantidade_total ? 'border-red-500' : ''}
                   />
+                  {errors.quantidade_total && <p className="text-red-500 text-sm">{errors.quantidade_total}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -399,11 +419,11 @@ const CadastrarEquipamento = () => {
                     id="quantidade_disponivel"
                     type="number"
                     min="0"
-                    max={formData.quantidade_total}
                     value={formData.quantidade_disponivel}
                     onChange={(e) => handleInputChange('quantidade_disponivel', e.target.value)}
-                    required
+                    className={errors.quantidade_disponivel ? 'border-red-500' : ''}
                   />
+                  {errors.quantidade_disponivel && <p className="text-red-500 text-sm">{errors.quantidade_disponivel}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -417,7 +437,6 @@ const CadastrarEquipamento = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="disponivel">Disponível</SelectItem>
-                      <SelectItem value="locado">Locado</SelectItem>
                       <SelectItem value="manutencao">Em Manutenção</SelectItem>
                       <SelectItem value="inativo">Inativo</SelectItem>
                     </SelectContent>
@@ -430,55 +449,59 @@ const CadastrarEquipamento = () => {
           {/* Especificações Técnicas */}
           <Card>
             <CardHeader>
-              <CardTitle>Especificações Técnicas</CardTitle>
+              <CardTitle className="flex items-center space-x-2">
+                <Settings className="h-5 w-5" />
+                <span>Especificações Técnicas</span>
+              </CardTitle>
               <CardDescription>
-                Adicione especificações técnicas do equipamento
+                Adicione características técnicas do equipamento
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex space-x-2">
-                <Input
-                  placeholder="Chave (ex: Potência)"
-                  value={especificacaoTemp.chave}
-                  onChange={(e) => setEspecificacaoTemp(prev => ({ ...prev, chave: e.target.value }))}
-                />
-                <Input
-                  placeholder="Valor (ex: 1000W)"
-                  value={especificacaoTemp.valor}
-                  onChange={(e) => setEspecificacaoTemp(prev => ({ ...prev, valor: e.target.value }))}
-                />
-                <Button type="button" onClick={handleEspecificacaoAdd}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {Object.keys(formData.especificacoes_tecnicas).length > 0 && (
-                <div className="space-y-2">
-                  <Label>Especificações Adicionadas:</Label>
-                  <div className="space-y-2">
-                    {Object.entries(formData.especificacoes_tecnicas).map(([chave, valor]) => (
-                      <div key={chave} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                        <span><strong>{chave}:</strong> {valor}</span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEspecificacaoRemove(chave)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+              {especificacoes.map((spec, index) => (
+                <div key={index} className="flex space-x-2">
+                  <Input
+                    placeholder="Característica (ex: Potência)"
+                    value={spec.chave}
+                    onChange={(e) => handleEspecificacaoChange(index, 'chave', e.target.value)}
+                    className="flex-1"
+                  />
+                  <Input
+                    placeholder="Valor (ex: 1000W RMS)"
+                    value={spec.valor}
+                    onChange={(e) => handleEspecificacaoChange(index, 'valor', e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => removeEspecificacao(index)}
+                    disabled={especificacoes.length === 1}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-              )}
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addEspecificacao}
+                className="w-full"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Especificação
+              </Button>
             </CardContent>
           </Card>
 
           {/* Imagens */}
           <Card>
             <CardHeader>
-              <CardTitle>Imagens</CardTitle>
+              <CardTitle className="flex items-center space-x-2">
+                <ImageIcon className="h-5 w-5" />
+                <span>Imagens</span>
+              </CardTitle>
               <CardDescription>
                 URLs das imagens do equipamento
               </CardDescription>
@@ -495,40 +518,39 @@ const CadastrarEquipamento = () => {
                 />
               </div>
 
+              <Separator />
+
               <div className="space-y-2">
                 <Label>Imagens Adicionais</Label>
-                <div className="flex space-x-2">
-                  <Input
-                    type="url"
-                    placeholder="https://exemplo.com/imagem2.jpg"
-                    value={imagemTemp}
-                    onChange={(e) => setImagemTemp(e.target.value)}
-                  />
-                  <Button type="button" onClick={handleImagemAdd}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                {formData.imagens_adicionais.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Imagens Adicionadas:</Label>
-                    <div className="space-y-2">
-                      {formData.imagens_adicionais.map((url, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                          <span className="truncate">{url}</span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleImagemRemove(index)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
+                {imagensAdicionais.map((imagem, index) => (
+                  <div key={index} className="flex space-x-2">
+                    <Input
+                      type="url"
+                      placeholder="https://exemplo.com/imagem.jpg"
+                      value={imagem}
+                      onChange={(e) => handleImagemAdicionalChange(index, e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeImagemAdicional(index)}
+                      disabled={imagensAdicionais.length === 1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                )}
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addImagemAdicional}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adicionar Imagem
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -536,40 +558,34 @@ const CadastrarEquipamento = () => {
           {/* Observações */}
           <Card>
             <CardHeader>
-              <CardTitle>Observações</CardTitle>
+              <CardTitle className="flex items-center space-x-2">
+                <Info className="h-5 w-5" />
+                <span>Observações</span>
+              </CardTitle>
               <CardDescription>
                 Informações adicionais sobre o equipamento
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <Label htmlFor="observacoes">Observações</Label>
-                <Textarea
-                  id="observacoes"
-                  value={formData.observacoes}
-                  onChange={(e) => handleInputChange('observacoes', e.target.value)}
-                  placeholder="Observações adicionais, instruções de uso, etc..."
-                  rows={3}
-                />
-              </div>
+              <Textarea
+                value={formData.observacoes}
+                onChange={(e) => handleInputChange('observacoes', e.target.value)}
+                placeholder="Observações gerais, cuidados especiais, acessórios inclusos..."
+                rows={3}
+              />
             </CardContent>
           </Card>
 
           {/* Botões de Ação */}
           <div className="flex justify-end space-x-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate('/equipamentos')}
-              disabled={submitting}
-            >
-              Cancelar
+            <Button type="button" variant="outline" asChild>
+              <Link to="/equipamentos">Cancelar</Link>
             </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? (
+            <Button type="submit" disabled={loading}>
+              {loading ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Cadastrando...
+                  Salvando...
                 </>
               ) : (
                 <>
@@ -585,4 +601,5 @@ const CadastrarEquipamento = () => {
   );
 };
 
-export default CadastrarEquipamento; 
+export default CadastrarEquipamento;
+
