@@ -49,6 +49,7 @@ reflex-som-mvp/
 - `Layout.jsx` - Layout principal da aplicação
 - `Dashboard.jsx` - Página inicial
 - `Equipamentos.jsx` - Lista e filtros de equipamentos
+- `DetalhesEquipamento.jsx` - Página de detalhes completos do equipamento
 - `CadastrarEquipamento.jsx` - Formulário de cadastro
 - `StaffRoute.jsx` - Proteção de rotas para staff
 - `Login.jsx` - Página de login
@@ -114,7 +115,7 @@ reflex-som-mvp/
 - ✅ Filtros por categoria, preço, disponibilidade
 - ✅ Busca por texto
 - ✅ Visualização em grid e lista
-- ✅ Detalhes do equipamento
+- ✅ **Detalhes completos do equipamento**
 - ✅ **Cadastro de equipamentos (apenas staff)**
 
 ### **🏷️ Categorias**
@@ -196,7 +197,7 @@ npm run dev
 
 ### **Equipamentos**
 - `GET /api/equipamentos/` - Listar equipamentos
-- `GET /api/equipamentos/<id>/` - Detalhes do equipamento
+- `GET /api/equipamentos/<id>/` - Detalhes completos do equipamento
 - `POST /api/equipamentos/criar/` - Criar equipamento (staff)
 - `PUT /api/equipamentos/<id>/editar/` - Editar equipamento (staff)
 - `DELETE /api/equipamentos/<id>/deletar/` - Deletar equipamento (staff)

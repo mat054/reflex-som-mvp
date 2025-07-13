@@ -9,6 +9,7 @@ import Dashboard from './components/Dashboard';
 import Perfil from './components/Perfil';
 import Equipamentos from './components/Equipamentos';
 import CadastrarEquipamento from './components/CadastrarEquipamento';
+import DetalhesEquipamento from './components/DetalhesEquipamento';
 import './App.css';
 
 function App() {
@@ -37,6 +38,12 @@ function App() {
             <Route path="/equipamentos" element={
               <ProtectedRoute>
                 <Equipamentos />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/equipamentos/:id" element={
+              <ProtectedRoute>
+                <DetalhesEquipamento />
               </ProtectedRoute>
             } />
             
