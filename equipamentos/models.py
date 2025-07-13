@@ -137,17 +137,126 @@ class Equipamento(models.Model):
     def disponivel(self):
         """Verifica se o equipamento está disponível para locação"""
         return self.estado == 'disponivel' and self.quantidade_disponivel > 0
+
+
+class Reserva(models.Model):
+    """
+    Modelo para solicitações de reserva de equipamentos
+    """
+    STATUS_CHOICES = [
+        ('pendente', 'Pendente'),
+        ('aprovada', 'Aprovada'),
+        ('rejeitada', 'Rejeitada'),
+        ('cancelada', 'Cancelada'),
+    ]
     
-    def calcular_valor_periodo(self, dias):
-        """Calcula o valor para um período específico em dias"""
-        if dias >= 30 and self.valor_mensal:
-            meses = dias // 30
-            dias_restantes = dias % 30
-            return (meses * self.valor_mensal) + (dias_restantes * self.valor_diaria)
-        elif dias >= 7 and self.valor_semanal:
-            semanas = dias // 7
-            dias_restantes = dias % 7
-            return (semanas * self.valor_semanal) + (dias_restantes * self.valor_diaria)
-        else:
-            return dias * self.valor_diaria
+    # Relacionamentos
+    cliente = models.ForeignKey(
+        'clientes.Cliente',
+        on_delete=models.CASCADE,
+        related_name='reservas',
+        verbose_name="Cliente"
+    )
+    
+    # Dados da reserva
+    data_uso = models.DateField(verbose_name="Data de Uso")
+    observacoes = models.TextField(blank=True, verbose_name="Observações")
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pendente',
+        verbose_name="Status"
+    )
+    
+    # Valor total estimado
+    valor_total = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        verbose_name="Valor Total Estimado"
+    )
+    
+    # Timestamps
+    data_solicitacao = models.DateTimeField(auto_now_add=True, verbose_name="Data da Solicitação")
+    data_aprovacao = models.DateTimeField(null=True, blank=True, verbose_name="Data de Aprovação")
+    data_atualizacao = models.DateTimeField(auto_now=True, verbose_name="Última Atualização")
+    
+    # Dados do staff que aprovou/rejeitou
+    aprovado_por = models.ForeignKey(
+        'clientes.Cliente',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reservas_aprovadas',
+        verbose_name="Aprovado Por"
+    )
+    
+    class Meta:
+        verbose_name = "Reserva"
+        verbose_name_plural = "Reservas"
+        ordering = ['-data_solicitacao']
+    
+    def __str__(self):
+        return f"Reserva #{self.id} - {self.cliente.nome} - {self.data_uso}"
+
+
+class ItemReserva(models.Model):
+    """
+    Itens individuais de uma reserva
+    """
+    MODALIDADE_CHOICES = [
+        ('diaria', 'Diária'),
+        ('semanal', 'Semanal'),
+        ('mensal', 'Mensal'),
+    ]
+    
+    reserva = models.ForeignKey(
+        Reserva,
+        on_delete=models.CASCADE,
+        related_name='itens',
+        verbose_name="Reserva"
+    )
+    
+    equipamento = models.ForeignKey(
+        Equipamento,
+        on_delete=models.CASCADE,
+        verbose_name="Equipamento"
+    )
+    
+    quantidade = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)],
+        verbose_name="Quantidade"
+    )
+    
+    modalidade = models.CharField(
+        max_length=20,
+        choices=MODALIDADE_CHOICES,
+        verbose_name="Modalidade"
+    )
+    
+    periodo = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)],
+        verbose_name="Período"
+    )
+    
+    valor_unitario = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        verbose_name="Valor Unitário"
+    )
+    
+    valor_total = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        verbose_name="Valor Total do Item"
+    )
+    
+    class Meta:
+        verbose_name = "Item de Reserva"
+        verbose_name_plural = "Itens de Reserva"
+    
+    def __str__(self):
+        return f"{self.equipamento.nome} - Qtd: {self.quantidade}"
 

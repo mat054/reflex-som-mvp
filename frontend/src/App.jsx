@@ -12,6 +12,7 @@ import Equipamentos from './components/Equipamentos';
 import CadastrarEquipamento from './components/CadastrarEquipamento';
 import DetalhesEquipamento from './components/DetalhesEquipamento';
 import Carrinho from './components/Carrinho';
+import AdminReservas from './components/AdminReservas';
 import './App.css';
 
 function App() {
@@ -60,6 +61,12 @@ function App() {
               <Route path="/equipamentos/cadastrar" element={
                 <StaffRoute>
                   <CadastrarEquipamento />
+                </StaffRoute>
+              } />
+              
+              <Route path="/admin/reservas" element={
+                <StaffRoute>
+                  <AdminReservas />
                 </StaffRoute>
               } />
               

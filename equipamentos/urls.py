@@ -20,5 +20,18 @@ urlpatterns = [
     path('categoria/<int:categoria_id>/', views.equipamentos_por_categoria_view, name='equipamentos-por-categoria'),
     path('buscar/', views.buscar_equipamentos_view, name='equipamentos-buscar'),
     path('calcular-valor/', views.EquipamentoCalculoValorView.as_view(), name='equipamentos-calcular-valor'),
+    
+    # Reservas
+    path('reservas/', views.ReservaListView.as_view(), name='reservas-list'),
+    path('reservas/criar/', views.ReservaCreateView.as_view(), name='reservas-create'),
+    path('reservas/<int:pk>/', views.ReservaDetailView.as_view(), name='reservas-detail'),
+    path('verificar-disponibilidade/', views.verificar_disponibilidade_view, name='verificar-disponibilidade'),
+    
+    # Administração de reservas (apenas staff)
+    path('admin/reservas/', views.AdminReservaListView.as_view(), name='admin-reservas-list'),
+    path('admin/reservas/<int:pk>/', views.AdminReservaDetailView.as_view(), name='admin-reservas-detail'),
+    path('admin/reservas/<int:reserva_id>/aprovar/', views.aprovar_reserva_view, name='admin-reservas-aprovar'),
+    path('admin/reservas/<int:reserva_id>/rejeitar/', views.rejeitar_reserva_view, name='admin-reservas-rejeitar'),
+    path('admin/reservas/estatisticas/', views.estatisticas_reservas_view, name='admin-reservas-estatisticas'),
 ]
 

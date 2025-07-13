@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Categoria, Equipamento
+from .models import Categoria, Equipamento, Reserva, ItemReserva
+from clientes.models import Cliente
 
 
 class CategoriaSerializer(serializers.ModelSerializer):
@@ -90,16 +91,6 @@ class EquipamentoCreateUpdateSerializer(serializers.ModelSerializer):
             )
         
         return attrs
-    
-    def validate_numero_serie(self, value):
-        """Validar número de série único"""
-        if value:
-            queryset = Equipamento.objects.filter(numero_serie=value)
-            if self.instance:
-                queryset = queryset.exclude(id=self.instance.id)
-            if queryset.exists():
-                raise serializers.ValidationError("Este número de série já está cadastrado.")
-        return value
 
 
 class EquipamentoCalculoValorSerializer(serializers.Serializer):
@@ -134,4 +125,129 @@ class EquipamentoCalculoValorSerializer(serializers.Serializer):
             'valor_mensal': equipamento.valor_mensal,
             'valor_total_calculado': valor_total
         }
+
+
+class ItemReservaSerializer(serializers.ModelSerializer):
+    """
+    Serializer para itens de reserva
+    """
+    equipamento_nome = serializers.CharField(source='equipamento.nome', read_only=True)
+    equipamento_marca = serializers.CharField(source='equipamento.marca', read_only=True)
+    equipamento_modelo = serializers.CharField(source='equipamento.modelo', read_only=True)
+    equipamento_imagem = serializers.CharField(source='equipamento.imagem_principal', read_only=True)
+    
+    class Meta:
+        model = ItemReserva
+        fields = [
+            'id', 'equipamento', 'equipamento_nome', 'equipamento_marca', 
+            'equipamento_modelo', 'equipamento_imagem', 'quantidade', 
+            'modalidade', 'periodo', 'valor_unitario', 'valor_total'
+        ]
+        read_only_fields = ['id']
+
+
+class ReservaCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer para criação de reservas
+    """
+    itens = ItemReservaSerializer(many=True, write_only=True)
+    
+    class Meta:
+        model = Reserva
+        fields = ['data_uso', 'observacoes', 'itens']
+    
+    def validate_data_uso(self, value):
+        """Validar se a data de uso é futura"""
+        from datetime import date
+        if value <= date.today():
+            raise serializers.ValidationError("A data de uso deve ser futura.")
+        return value
+    
+    def validate_itens(self, value):
+        """Validar itens da reserva"""
+        if not value:
+            raise serializers.ValidationError("A reserva deve ter pelo menos um item.")
+        
+        # Verificar disponibilidade de cada item
+        for item_data in value:
+            equipamento = item_data['equipamento']
+            quantidade = item_data['quantidade']
+            
+            if quantidade > equipamento.quantidade_disponivel:
+                raise serializers.ValidationError(
+                    f"Quantidade solicitada ({quantidade}) excede a disponível "
+                    f"({equipamento.quantidade_disponivel}) para {equipamento.nome}."
+                )
+            
+            if not equipamento.disponivel:
+                raise serializers.ValidationError(
+                    f"Equipamento {equipamento.nome} não está disponível."
+                )
+        
+        return value
+    
+    def create(self, validated_data):
+        """Criar reserva com itens"""
+        itens_data = validated_data.pop('itens')
+        
+        # Calcular valor total
+        valor_total = sum(item['valor_total'] for item in itens_data)
+        validated_data['valor_total'] = valor_total
+        
+        # Criar reserva
+        reserva = Reserva.objects.create(**validated_data)
+        
+        # Criar itens
+        for item_data in itens_data:
+            ItemReserva.objects.create(reserva=reserva, **item_data)
+        
+        return reserva
+
+
+class ClienteReservaSerializer(serializers.ModelSerializer):
+    """
+    Serializer para dados do cliente na reserva
+    """
+    class Meta:
+        model = Cliente
+        fields = ['id', 'nome_completo', 'email', 'telefone']
+
+
+class ReservaDetailSerializer(serializers.ModelSerializer):
+    """
+    Serializer para detalhes da reserva
+    """
+    itens = ItemReservaSerializer(many=True, read_only=True)
+    cliente = ClienteReservaSerializer(read_only=True)
+    aprovado_por_nome = serializers.CharField(source='aprovado_por.nome_completo', read_only=True)
+    
+    class Meta:
+        model = Reserva
+        fields = [
+            'id', 'cliente', 'data_uso', 'observacoes', 'status', 'valor_total', 
+            'data_solicitacao', 'data_aprovacao', 'aprovado_por', 'aprovado_por_nome', 'itens'
+        ]
+        read_only_fields = [
+            'id', 'cliente', 'data_solicitacao', 'data_aprovacao', 'aprovado_por'
+        ]
+
+
+class ReservaListSerializer(serializers.ModelSerializer):
+    """
+    Serializer para listagem de reservas
+    """
+    cliente_nome = serializers.CharField(source='cliente.nome_completo', read_only=True)
+    total_itens = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Reserva
+        fields = [
+            'id', 'cliente_nome', 'data_uso', 'status', 'valor_total',
+            'data_solicitacao', 'total_itens'
+        ]
+        read_only_fields = ['id']
+    
+    def get_total_itens(self, obj):
+        """Retorna o total de itens na reserva"""
+        return obj.itens.count()
 

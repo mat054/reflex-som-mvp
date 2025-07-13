@@ -142,6 +142,15 @@ const Layout = ({ children }) => {
                     <ShoppingCart className="mr-2 h-4 w-4" />
                     <span>Carrinho ({cartItemCount})</span>
                   </DropdownMenuItem>
+                  {user?.is_staff && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => navigate('/admin/reservas')}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Administrar Reservas</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
@@ -198,6 +207,16 @@ const Layout = ({ children }) => {
                 <ShoppingCart className="h-5 w-5" />
                 <span>Carrinho ({cartItemCount})</span>
               </Link>
+              {user?.is_staff && (
+                <Link
+                  to="/admin/reservas"
+                  className="flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary hover:bg-gray-100"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Settings className="h-5 w-5" />
+                  <span>Administrar Reservas</span>
+                </Link>
+              )}
             </div>
           </div>
         )}

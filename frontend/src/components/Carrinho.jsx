@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
+import { equipamentoService } from '../lib/api';
 import Layout from './Layout';
+import ConfirmReservaModal from './ConfirmReservaModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +28,8 @@ const Carrinho = () => {
   const navigate = useNavigate();
   const { cartItems, removeFromCart, updateQuantity, clearCart, getCartTotal } = useCart();
   const [loading, setLoading] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -83,19 +87,105 @@ const Carrinho = () => {
     }
   };
 
-  const handleCheckout = () => {
-    // Implementar checkout (pode ser implementado depois)
-    alert('Funcionalidade de checkout será implementada em breve!');
+  const handleSolicitarReserva = () => {
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmReserva = async (formData) => {
+    setLoading(true);
+    
+    try {
+      // 1. Verificar disponibilidade
+      const itensParaVerificar = cartItems.map(item => ({
+        equipamento_id: item.equipamento_id,
+        quantidade: item.quantidade
+      }));
+
+      const verificacao = await equipamentoService.verificarDisponibilidade(
+        formData.data_uso,
+        itensParaVerificar
+      );
+
+      if (!verificacao.todos_disponiveis) {
+        // Mostrar quais equipamentos estão indisponíveis
+        const indisponiveis = verificacao.resultados
+          .filter(r => !r.disponivel)
+          .map(r => r.equipamento_nome || `Equipamento ID ${r.equipamento_id}`)
+          .join(', ');
+        
+        throw new Error(`Os seguintes equipamentos estão indisponíveis: ${indisponiveis}. Por favor, ajuste as quantidades ou escolha uma data diferente.`);
+      }
+
+      // 2. Criar reserva
+      const reservaData = {
+        data_uso: formData.data_uso,
+        observacoes: formData.observacoes,
+        itens: cartItems.map(item => ({
+          equipamento: item.equipamento_id,
+          quantidade: item.quantidade,
+          modalidade: item.modalidade,
+          periodo: item.periodo,
+          valor_unitario: item.valor_unitario,
+          valor_total: item.valor_total
+        }))
+      };
+
+      const response = await equipamentoService.criarReserva(reservaData);
+      
+      // 3. Limpar carrinho e mostrar sucesso
+      clearCart();
+      setSuccessMessage('Reserva enviada com sucesso! Aguarde aprovação.');
+      
+      // Scroll para o topo para mostrar a mensagem
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    } catch (error) {
+      console.error('Erro ao solicitar reserva:', error);
+      throw error; // Repassar erro para o modal tratar
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleContinueShopping = () => {
     navigate('/equipamentos');
   };
 
+  // Se há mensagem de sucesso, mostrar ela
+  if (successMessage) {
+    return (
+      <Layout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center">
+            <CheckCircle className="h-24 w-24 mx-auto mb-4 text-green-500" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Reserva Enviada!</h2>
+            <p className="text-gray-600 mb-6">
+              {successMessage}
+            </p>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500">
+                Você receberá um email com a confirmação e status da sua reserva.
+              </p>
+              <div className="flex justify-center space-x-4">
+                <Button onClick={handleContinueShopping}>
+                  <ShoppingBag className="h-4 w-4 mr-2" />
+                  Continuar Comprando
+                </Button>
+                <Button variant="outline" onClick={() => navigate('/dashboard')}>
+                  Ir para Dashboard
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   if (cartItems.length === 0) {
     return (
       <Layout>
-        <div className="container mx-auto px-4 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center">
             <ShoppingCart className="h-24 w-24 mx-auto mb-4 text-gray-300" />
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Seu carrinho está vazio</h2>
@@ -114,7 +204,7 @@ const Carrinho = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Cabeçalho */}
         <div className="mb-6">
           <div className="flex items-center justify-between">
@@ -290,7 +380,7 @@ const Carrinho = () => {
                   <Button
                     className="w-full"
                     size="lg"
-                    onClick={handleCheckout}
+                    onClick={handleSolicitarReserva}
                     disabled={loading}
                   >
                     {loading ? (
@@ -334,6 +424,14 @@ const Carrinho = () => {
             </Card>
           </div>
         </div>
+
+        {/* Modal de Confirmação de Reserva */}
+        <ConfirmReservaModal
+          isOpen={showConfirmModal}
+          onClose={() => setShowConfirmModal(false)}
+          cartItems={cartItems}
+          onConfirm={handleConfirmReserva}
+        />
       </div>
     </Layout>
   );
