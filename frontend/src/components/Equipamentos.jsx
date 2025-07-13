@@ -249,14 +249,12 @@ const Equipamentos = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Equipamentos</h1>
-            <p className="text-gray-600 mt-1">
-              Encontre os equipamentos ideais para sua locação
-            </p>
+            <h1 className="text-3xl font-bold mb-2">Equipamentos</h1>
+            <p className="text-gray-600 mb-6">Encontre os equipamentos ideais para sua locação</p>
           </div>
           <div className="flex items-center space-x-2">
             {isStaff && (

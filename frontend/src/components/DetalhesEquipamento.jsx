@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { equipamentoService } from '../lib/api';
+import { useCart } from '../contexts/CartContext';
 import Layout from './Layout';
+import AddToCartModal from './AddToCartModal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,17 +19,19 @@ import {
   Settings,
   Calendar,
   MapPin,
-  Zap,
+  ShoppingCart,
   AlertCircle
 } from 'lucide-react';
 
 const DetalhesEquipamento = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isInCart } = useCart();
   const [equipamento, setEquipamento] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [imagemPrincipalError, setImagemPrincipalError] = useState(false);
+  const [showAddToCartModal, setShowAddToCartModal] = useState(false);
 
   useEffect(() => {
     loadEquipamento();
@@ -45,6 +49,10 @@ const DetalhesEquipamento = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddToCart = () => {
+    setShowAddToCartModal(true);
   };
 
   const formatCurrency = (value) => {
@@ -86,24 +94,44 @@ const DetalhesEquipamento = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center py-12">
+        <div className="flex items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
         </div>
       </Layout>
     );
   }
 
-  if (error || !equipamento) {
+  if (error) {
     return (
       <Layout>
-        <div className="flex flex-col items-center justify-center py-12">
-          <AlertCircle className="h-16 w-16 text-red-500 mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Equipamento não encontrado</h2>
-          <p className="text-gray-600 mb-4">{error || 'O equipamento solicitado não existe.'}</p>
-          <Button onClick={() => navigate('/equipamentos')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar para Equipamentos
-          </Button>
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
+            <h2 className="text-xl font-semibold mb-2">Erro ao carregar equipamento</h2>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <Button onClick={() => navigate('/equipamentos')}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar aos Equipamentos
+            </Button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!equipamento) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+            <h2 className="text-xl font-semibold mb-2">Equipamento não encontrado</h2>
+            <p className="text-gray-600 mb-4">O equipamento solicitado não foi encontrado.</p>
+            <Button onClick={() => navigate('/equipamentos')}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar aos Equipamentos
+            </Button>
+          </div>
         </div>
       </Layout>
     );
@@ -111,28 +139,35 @@ const DetalhesEquipamento = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button variant="outline" size="sm" onClick={() => navigate('/equipamentos')}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
-            </Button>
+      <div className="container mx-auto px-4 py-8">
+        {/* Cabeçalho */}
+        <div className="mb-6">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/equipamentos')}
+            className="mb-4"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar
+          </Button>
+          
+          <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{equipamento.nome}</h1>
-              <p className="text-gray-600 mt-1">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                {equipamento.nome}
+              </h1>
+              <p className="text-lg text-gray-600">
                 {equipamento.marca} {equipamento.modelo}
               </p>
             </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            {getStatusBadge(equipamento.estado, equipamento.disponivel)}
+            <div className="flex items-center space-x-2">
+              {getStatusBadge(equipamento.estado, equipamento.disponivel)}
+            </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Coluna Principal - Informações */}
+          {/* Coluna Principal */}
           <div className="lg:col-span-2 space-y-6">
             {/* Informações Básicas */}
             <Card>
@@ -143,42 +178,30 @@ const DetalhesEquipamento = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center space-x-3">
-                    <Tag className="h-5 w-5 text-gray-400" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Categoria</p>
-                      <p className="text-lg">{equipamento.categoria_nome}</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="flex items-center space-x-2 text-gray-600 mb-1">
+                      <Tag className="h-4 w-4" />
+                      <span className="text-sm">Categoria</span>
                     </div>
+                    <p className="font-medium">{equipamento.categoria_nome}</p>
                   </div>
                   
-                  <div className="flex items-center space-x-3">
-                    <Hash className="h-5 w-5 text-gray-400" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Quantidade Disponível</p>
-                      <p className="text-lg font-semibold text-green-600">
-                        {equipamento.quantidade_disponivel} de {equipamento.quantidade_total}
-                      </p>
+                  <div>
+                    <div className="flex items-center space-x-2 text-gray-600 mb-1">
+                      <Hash className="h-4 w-4" />
+                      <span className="text-sm">Quantidade Disponível</span>
                     </div>
+                    <p className="font-medium">{equipamento.quantidade_disponivel} de {equipamento.quantidade_total}</p>
                   </div>
+                </div>
 
-                  {equipamento.numero_serie && (
-                    <div className="flex items-center space-x-3">
-                      <Hash className="h-5 w-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Número de Série</p>
-                        <p className="text-lg font-mono">{equipamento.numero_serie}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-center space-x-3">
-                    <Calendar className="h-5 w-5 text-gray-400" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Data de Cadastro</p>
-                      <p className="text-lg">{formatDate(equipamento.data_cadastro)}</p>
-                    </div>
+                <div>
+                  <div className="flex items-center space-x-2 text-gray-600 mb-1">
+                    <Calendar className="h-4 w-4" />
+                    <span className="text-sm">Data de Cadastro</span>
                   </div>
+                  <p className="font-medium">{formatDate(equipamento.data_cadastro)}</p>
                 </div>
               </CardContent>
             </Card>
@@ -192,7 +215,7 @@ const DetalhesEquipamento = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                <p className="text-gray-700 leading-relaxed">
                   {equipamento.descricao}
                 </p>
               </CardContent>
@@ -209,38 +232,21 @@ const DetalhesEquipamento = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {Object.entries(equipamento.especificacoes_tecnicas).map(([chave, valor]) => (
-                      <div key={chave} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <span className="font-medium text-gray-700">{chave}:</span>
-                        <span className="text-gray-900">{valor}</span>
+                    {Object.entries(equipamento.especificacoes_tecnicas).map(([key, value]) => (
+                      <div key={key} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                        <span className="font-medium text-gray-700">{key}:</span>
+                        <span className="text-gray-600">{value}</span>
                       </div>
                     ))}
                   </div>
                 </CardContent>
               </Card>
             )}
-
-            {/* Observações */}
-            {equipamento.observacoes && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <FileText className="h-5 w-5" />
-                    <span>Observações</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {equipamento.observacoes}
-                  </p>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
-          {/* Coluna Lateral - Preços e Imagens */}
+          {/* Coluna Lateral */}
           <div className="space-y-6">
-            {/* Preços */}
+            {/* Valores de Locação */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
@@ -251,7 +257,7 @@ const DetalhesEquipamento = () => {
               <CardContent className="space-y-4">
                 <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
                   <p className="text-sm font-medium text-green-600">Valor Diária</p>
-                  <p className="text-3xl font-bold text-green-700">
+                  <p className="text-2xl font-bold text-green-700">
                     {formatCurrency(equipamento.valor_diaria)}
                   </p>
                   <p className="text-sm text-green-600">por dia</p>
@@ -279,11 +285,16 @@ const DetalhesEquipamento = () => {
 
                 <Separator />
 
-                <Button className="w-full" size="lg" disabled={!equipamento.disponivel}>
+                <Button 
+                  className="w-full" 
+                  size="lg" 
+                  disabled={!equipamento.disponivel}
+                  onClick={handleAddToCart}
+                >
                   {equipamento.disponivel ? (
                     <>
-                      <Zap className="h-4 w-4 mr-2" />
-                      Solicitar Locação
+                      <ShoppingCart className="h-4 w-4 mr-2" />
+                      {isInCart(equipamento.id) ? 'Adicionar Novamente' : 'Adicionar ao Carrinho'}
                     </>
                   ) : (
                     'Indisponível'
@@ -345,6 +356,13 @@ const DetalhesEquipamento = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Adicionar ao Carrinho */}
+      <AddToCartModal
+        equipamento={equipamento}
+        isOpen={showAddToCartModal}
+        onClose={() => setShowAddToCartModal(false)}
+      />
     </Layout>
   );
 };

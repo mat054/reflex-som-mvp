@@ -90,16 +90,12 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Bem-vindo, {user?.nome_completo?.split(' ')[0]}!
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Gerencie seus equipamentos e locações
-            </p>
+            <h1 className="text-3xl font-bold mb-2">Bem-vindo, {user?.nome || 'usuário'}!</h1>
+            <p className="text-gray-600 mb-6">Gerencie seus equipamentos e locações</p>
           </div>
           <div className="flex gap-2">
             <Button asChild>
@@ -112,7 +108,7 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -162,7 +158,7 @@ const Dashboard = () => {
         </div>
 
         {/* Recent Equipment */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-10">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">

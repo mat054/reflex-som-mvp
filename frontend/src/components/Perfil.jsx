@@ -213,7 +213,7 @@ const Perfil = () => {
     <Layout>
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div>
+        <div className="mt-8"> {/* Altere o valor de mt-8 para controlar o espaçamento superior */}
           <h1 className="text-3xl font-bold text-gray-900">Meu Perfil</h1>
           <p className="text-gray-600 mt-1">
             Gerencie suas informações pessoais e configurações de conta
