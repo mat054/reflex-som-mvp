@@ -62,7 +62,22 @@ const Equipamentos = () => {
     try {
       setLoading(true);
       const params = Object.fromEntries(searchParams);
-      const response = await equipamentoService.listar(params);
+      
+      // Se há parâmetros de busca, usar endpoint de busca
+      // Caso contrário, usar listagem simples
+      const hasSearchParams = Object.keys(params).length > 0;
+      
+      let response;
+      if (hasSearchParams) {
+        // Usar endpoint de busca avançada
+        const query = params.q || '';
+        delete params.q; // Remove 'q' dos params para passar separadamente
+        response = await equipamentoService.buscar(query, params);
+      } else {
+        // Usar listagem simples
+        response = await equipamentoService.listar(params);
+      }
+      
       setEquipamentos(response.results || response.equipamentos || []);
     } catch (error) {
       console.error('Erro ao carregar equipamentos:', error);

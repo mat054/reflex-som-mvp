@@ -51,7 +51,7 @@ class EquipamentoListView(generics.ListAPIView):
         
         # Filtro por disponibilidade
         disponivel = self.request.query_params.get('disponivel')
-        if disponivel is not None:
+        if disponivel and disponivel != 'all':
             if disponivel.lower() == 'true':
                 queryset = queryset.filter(
                     estado='disponivel',
@@ -68,9 +68,28 @@ class EquipamentoListView(generics.ListAPIView):
         preco_max = self.request.query_params.get('preco_max')
         
         if preco_min:
-            queryset = queryset.filter(valor_diaria__gte=preco_min)
+            try:
+                preco_min_decimal = float(preco_min)
+                queryset = queryset.filter(valor_diaria__gte=preco_min_decimal)
+            except ValueError:
+                pass
+        
         if preco_max:
-            queryset = queryset.filter(valor_diaria__lte=preco_max)
+            try:
+                preco_max_decimal = float(preco_max)
+                queryset = queryset.filter(valor_diaria__lte=preco_max_decimal)
+            except ValueError:
+                pass
+        
+        # Filtro por marca
+        marca = self.request.query_params.get('marca')
+        if marca:
+            queryset = queryset.filter(marca__icontains=marca)
+        
+        # Filtro por categoria
+        categoria = self.request.query_params.get('categoria')
+        if categoria and categoria != 'all':
+            queryset = queryset.filter(categoria_id=categoria)
         
         return queryset
 
@@ -223,6 +242,9 @@ def buscar_equipamentos_view(request):
     query = request.query_params.get('q', '')
     categoria_id = request.query_params.get('categoria')
     disponivel = request.query_params.get('disponivel')
+    preco_min = request.query_params.get('preco_min')
+    preco_max = request.query_params.get('preco_max')
+    marca = request.query_params.get('marca')
     
     equipamentos = Equipamento.objects.all()
     
@@ -236,15 +258,43 @@ def buscar_equipamentos_view(request):
         )
     
     # Filtro por categoria
-    if categoria_id:
+    if categoria_id and categoria_id != 'all':
         equipamentos = equipamentos.filter(categoria_id=categoria_id)
     
     # Filtro por disponibilidade
-    if disponivel and disponivel.lower() == 'true':
-        equipamentos = equipamentos.filter(
-            estado='disponivel',
-            quantidade_disponivel__gt=0
-        )
+    if disponivel and disponivel != 'all':
+        if disponivel.lower() == 'true':
+            equipamentos = equipamentos.filter(
+                estado='disponivel',
+                quantidade_disponivel__gt=0
+            )
+        elif disponivel.lower() == 'false':
+            equipamentos = equipamentos.exclude(
+                estado='disponivel',
+                quantidade_disponivel__gt=0
+            )
+    
+    # Filtro por faixa de preço
+    if preco_min:
+        try:
+            preco_min_decimal = float(preco_min)
+            equipamentos = equipamentos.filter(valor_diaria__gte=preco_min_decimal)
+        except ValueError:
+            pass
+    
+    if preco_max:
+        try:
+            preco_max_decimal = float(preco_max)
+            equipamentos = equipamentos.filter(valor_diaria__lte=preco_max_decimal)
+        except ValueError:
+            pass
+    
+    # Filtro por marca
+    if marca:
+        equipamentos = equipamentos.filter(marca__icontains=marca)
+    
+    # Ordenação
+    equipamentos = equipamentos.order_by('categoria__nome', 'nome')
     
     serializer = EquipamentoListSerializer(equipamentos, many=True)
     return Response({
