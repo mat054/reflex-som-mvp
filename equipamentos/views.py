@@ -195,6 +195,51 @@ class EquipamentoDeleteView(generics.DestroyAPIView):
         }, status=status.HTTP_200_OK)
 
 
+@api_view(['GET'])
+@permission_classes([IsStaffUser])
+def verificar_pode_deletar_equipamento_view(request, equipamento_id):
+    """
+    View para verificar se um equipamento pode ser deletado
+    """
+    try:
+        equipamento = Equipamento.objects.get(id=equipamento_id)
+        
+        # Verificar se o equipamento está vinculado a reservas futuras ou ativas
+        from django.utils import timezone
+        hoje = timezone.now().date()
+        
+        # Buscar reservas aprovadas ou pendentes com data de uso futura ou igual a hoje
+        reservas_ativas = ItemReserva.objects.filter(
+            equipamento=equipamento,
+            reserva__status__in=['aprovada', 'pendente'],
+            reserva__data_uso__gte=hoje
+        )
+        
+        can_delete = not reservas_ativas.exists()
+        
+        response_data = {
+            'can_delete': can_delete,
+            'equipamento_nome': equipamento.nome
+        }
+        
+        if not can_delete:
+            # Contar quantas reservas ativas existem
+            count_reservas = reservas_ativas.count()
+            response_data['message'] = f'Este equipamento possui {count_reservas} reserva(s) ativa(s) ou futura(s) e não pode ser removido no momento.'
+            response_data['reservas_ativas'] = count_reservas
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+    except Equipamento.DoesNotExist:
+        return Response({
+            'error': 'Equipamento não encontrado.'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            'error': f'Erro interno: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class EquipamentoCalculoValorView(APIView):
     """
     View para calcular valor de locação por período

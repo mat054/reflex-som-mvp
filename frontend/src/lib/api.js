@@ -174,6 +174,12 @@ export const equipamentoService = {
     return response.data;
   },
 
+  // Verificar se pode deletar equipamento
+  async verificarPodeDeletar(id) {
+    const response = await api.get(`/equipamentos/${id}/pode-deletar/`);
+    return response.data;
+  },
+
   // Listar equipamentos disponíveis
   async listarDisponiveis() {
     const response = await api.get('/equipamentos/disponiveis/');

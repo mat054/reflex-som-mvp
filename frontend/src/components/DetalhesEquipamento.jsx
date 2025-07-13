@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { equipamentoService } from '../lib/api';
 import { useCart } from '../contexts/CartContext';
+import { useAuth } from '../contexts/AuthContext';
 import Layout from './Layout';
 import AddToCartModal from './AddToCartModal';
 import { Button } from '@/components/ui/button';
@@ -20,22 +21,46 @@ import {
   Calendar,
   MapPin,
   ShoppingCart,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle, 
+  AlertDialogTrigger 
+} from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const DetalhesEquipamento = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isInCart } = useCart();
+  const { user } = useAuth();
   const [equipamento, setEquipamento] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [imagemPrincipalError, setImagemPrincipalError] = useState(false);
   const [showAddToCartModal, setShowAddToCartModal] = useState(false);
+  const [canDelete, setCanDelete] = useState(true);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteMessage, setDeleteMessage] = useState('');
 
   useEffect(() => {
     loadEquipamento();
   }, [id]);
+
+  useEffect(() => {
+    if (user?.is_staff && equipamento) {
+      checkCanDelete();
+    }
+  }, [user, equipamento]);
 
   const loadEquipamento = async () => {
     try {
@@ -53,6 +78,48 @@ const DetalhesEquipamento = () => {
 
   const handleAddToCart = () => {
     setShowAddToCartModal(true);
+  };
+
+  const checkCanDelete = async () => {
+    try {
+      const response = await equipamentoService.verificarPodeDeletar(id);
+      setCanDelete(response.can_delete);
+      if (!response.can_delete) {
+        setDeleteMessage(response.message);
+      }
+    } catch (error) {
+      console.error('Erro ao verificar se pode deletar:', error);
+      setCanDelete(false);
+    }
+  };
+
+  const handleDeleteEquipamento = async () => {
+    try {
+      setDeleteLoading(true);
+      setDeleteError('');
+      
+      const response = await equipamentoService.deletar(id);
+      
+      if (response.can_delete) {
+        // Sucesso - redirecionar para lista de equipamentos
+        navigate('/equipamentos', { 
+          state: { 
+            message: response.message,
+            type: 'success' 
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao deletar equipamento:', error);
+      
+      if (error.response?.data?.error) {
+        setDeleteError(error.response.data.error);
+      } else {
+        setDeleteError('Erro ao remover equipamento. Tente novamente.');
+      }
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const formatCurrency = (value) => {
@@ -300,6 +367,57 @@ const DetalhesEquipamento = () => {
                     'Indisponível'
                   )}
                 </Button>
+
+                {/* Botão de Remoção para Administradores */}
+                {user?.is_staff && (
+                  <>
+                    <Separator />
+                    
+                    {deleteError && (
+                      <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>{deleteError}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    {!canDelete && deleteMessage && (
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>{deleteMessage}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="destructive" 
+                          className="w-full"
+                          disabled={!canDelete || deleteLoading}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          {deleteLoading ? 'Removendo...' : 'Remover Equipamento'}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remover Equipamento</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tem certeza de que deseja remover este equipamento? Esta ação não poderá ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleDeleteEquipamento}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Sim, remover
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </>
+                )}
               </CardContent>
             </Card>
 

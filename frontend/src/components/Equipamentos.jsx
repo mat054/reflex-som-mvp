@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useLocation } from 'react-router-dom';
 import { equipamentoService } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from './Layout';
@@ -19,16 +19,21 @@ import {
   DollarSign,
   Grid,
   List,
-  Plus
+  Plus,
+  CheckCircle,
+  X
 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const Equipamentos = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const { user } = useAuth();
   const [equipamentos, setEquipamentos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('grid');
+  const [message, setMessage] = useState('');
   const [filters, setFilters] = useState({
     search: searchParams.get('q') || '',
     categoria: searchParams.get('categoria') || '',
@@ -48,6 +53,18 @@ const Equipamentos = () => {
   useEffect(() => {
     loadEquipamentos();
   }, [searchParams]);
+
+  useEffect(() => {
+    // Verificar se há mensagem do estado da navegação
+    if (location.state?.message) {
+      setMessage(location.state.message);
+      // Limpar a mensagem após 5 segundos
+      const timer = setTimeout(() => {
+        setMessage('');
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [location.state]);
 
   const loadCategorias = async () => {
     try {
@@ -281,6 +298,24 @@ const Equipamentos = () => {
             </Button>
           </div>
         </div>
+
+        {/* Mensagem de Sucesso */}
+        {message && (
+          <Alert className="mb-6">
+            <CheckCircle className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between">
+              {message}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setMessage('')}
+                className="h-auto p-1 ml-2"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Filtros */}
         <Card>

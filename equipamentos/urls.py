@@ -14,6 +14,7 @@ urlpatterns = [
     path('criar/', views.EquipamentoCreateView.as_view(), name='equipamentos-create'),
     path('<int:pk>/editar/', views.EquipamentoUpdateView.as_view(), name='equipamentos-update'),
     path('<int:pk>/deletar/', views.EquipamentoDeleteView.as_view(), name='equipamentos-delete'),
+    path('<int:equipamento_id>/pode-deletar/', views.verificar_pode_deletar_equipamento_view, name='equipamentos-pode-deletar'),
     
     # Funcionalidades especiais
     path('disponiveis/', views.equipamentos_disponiveis_view, name='equipamentos-disponiveis'),
