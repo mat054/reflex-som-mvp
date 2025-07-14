@@ -17,7 +17,7 @@ services:
     environment:
       - DEBUG=False
       - SECRET_KEY=your-secret-key-here
-      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,reflex-som.arthrok.shop
       - DATABASE_ENGINE=sqlite
       - DATABASE_NAME=/app/data/db.sqlite3
       - DJANGO_SETTINGS_MODULE=backend.settings_docker
@@ -32,7 +32,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:8000/api
+      - VITE_API_URL=http://reflex-som.arthrok.shop/api
     restart: unless-stopped
     depends_on:
       - web
