@@ -16,6 +16,9 @@ RUN pnpm install
 # Copiar código fonte
 COPY . .
 
+# Criar arquivo .env automaticamente se não existir
+RUN echo "VITE_API_BASE_URL=http://localhost/api" > .env
+
 # Expor porta do Vite
 EXPOSE 5173
 
