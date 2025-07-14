@@ -16,13 +16,14 @@ RUN pnpm install
 # Copiar código fonte
 COPY . .
 
-# Criar arquivo .env automaticamente para produção
-RUN echo "VITE_API_BASE_URL=/api" > .env
+# Criar arquivo .env se não existir (para Docker Compose local)
+# No Render, as variáveis vêm do render.yaml
+RUN if [ ! -f .env ]; then echo "VITE_API_BASE_URL=/api" > .env; fi
 
 # Fazer build da aplicação para produção
 RUN pnpm run build
 
-# Expor porta 8080 (Railway padrão)
+# Expor porta 8080 (padrão para produção)
 EXPOSE 8080
 
 # Comando para produção (vite preview na porta 8080)

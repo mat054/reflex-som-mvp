@@ -1,0 +1,55 @@
+services:
+  # Backend Django (API + Admin + Static)
+  - type: web
+    name: reflex-som-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: DEBUG
+        value: False
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: reflex-som-backend.onrender.com,reflex-som-frontend.onrender.com,localhost,127.0.0.1
+      - key: DATABASE_ENGINE
+        value: sqlite
+      - key: DATABASE_NAME
+        value: /app/data/db.sqlite3
+      - key: DJANGO_SETTINGS_MODULE
+        value: backend.settings_render
+      - key: RENDER
+        value: true
+    startCommand: |
+      python manage.py migrate &&
+      python create_staff_user.py &&
+      python create_sample_data.py &&
+      python manage.py collectstatic --noinput &&
+      gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers 3
+    disk:
+      name: sqlite-data
+      mountPath: /app/data
+      sizeGB: 1
+    healthCheckPath: /api/
+
+  # Frontend React (Interface do usuário)
+  - type: web
+    name: reflex-som-frontend
+    env: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://reflex-som-backend.onrender.com/api
+    startCommand: |
+      pnpm run preview --host 0.0.0.0 --port 8080
+    healthCheckPath: /
+
+# Como usar:
+# 1. Suba este arquivo render.yaml na raiz do seu repositório
+# 2. No Render, crie um "Blueprint" e aponte para o repositório
+# 3. O Render criará automaticamente 2 serviços:
+#    - Backend: https://reflex-som-backend.onrender.com
+#    - Frontend: https://reflex-som-frontend.onrender.com
+# 4. Use o frontend para acessar a aplicação
+# 5. Use o backend para API, admin (/admin/) e swagger (/swagger/) 
