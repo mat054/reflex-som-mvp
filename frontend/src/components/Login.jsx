@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { authService } from '../lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Wifi } from 'lucide-react';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -16,12 +17,37 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [debugInfo, setDebugInfo] = useState(null);
 
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const from = location.state?.from?.pathname || '/dashboard';
+
+  // DEBUG: Test connection function
+  const testConnection = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      console.log('🔍 Starting connection test...');
+      const result = await authService.testConnection();
+      setDebugInfo(result);
+      
+      if (result.success) {
+        setError('✅ Conexão OK! O problema pode estar no login específico.');
+      } else {
+        setError(`❌ Problema de conexão: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Connection test error:', error);
+      setError(`❌ Erro no teste: ${error.message}`);
+      setDebugInfo({ success: false, error: error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -31,12 +57,14 @@ const Login = () => {
     }));
     // Limpar erro ao digitar
     if (error) setError('');
+    if (debugInfo) setDebugInfo(null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setDebugInfo(null);
 
     try {
       await login(formData);
@@ -140,6 +168,31 @@ const Login = () => {
               >
                 {loading ? 'Entrando...' : 'Entrar'}
               </Button>
+
+              {/* DEBUG: Botão de teste de conexão - REMOVER EM PRODUÇÃO */}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={testConnection}
+                disabled={loading}
+                className="w-full flex items-center gap-2"
+              >
+                <Wifi className="h-4 w-4" />
+                {loading ? 'Testando...' : 'Testar Conexão (Debug)'}
+              </Button>
+
+              {/* DEBUG: Informações de debug */}
+              {debugInfo && (
+                <div className="w-full p-3 bg-gray-100 rounded-md text-xs">
+                  <strong>Debug Info:</strong>
+                  <pre className="mt-1 whitespace-pre-wrap">
+                    {JSON.stringify(debugInfo, null, 2)}
+                  </pre>
+                  <div className="mt-2">
+                    <strong>Console:</strong> Abra F12 → Console para mais detalhes
+                  </div>
+                </div>
+              )}
 
               <div className="text-center text-sm text-gray-600">
                 Não tem uma conta?{' '}

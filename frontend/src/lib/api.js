@@ -1,7 +1,47 @@
 import axios from 'axios';
 
-// Configuração base da API
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+// Função para detectar protocolo correto
+const detectProtocol = () => {
+  const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+  const currentProtocol = window.location.protocol; // 'http:' ou 'https:'
+  
+  console.log('🔍 Protocol detection:');
+  console.log('- Current hostname:', window.location.hostname);
+  console.log('- Current protocol:', currentProtocol);
+  console.log('- Is production:', isProduction);
+  
+  return currentProtocol; // Use o mesmo protocolo da página atual
+};
+
+// Configuração base da API com detecção automática de protocolo
+const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  
+  if (envUrl) {
+    // Se há uma URL específica no ambiente, verificar protocolo
+    const protocol = detectProtocol();
+    const urlWithoutProtocol = envUrl.replace(/^https?:/, '');
+    const correctedUrl = protocol + urlWithoutProtocol;
+    
+    console.log('🔧 URL Correction:');
+    console.log('- Original env URL:', envUrl);
+    console.log('- Corrected URL:', correctedUrl);
+    
+    return correctedUrl;
+  }
+  
+  // Fallback para desenvolvimento local
+  return 'http://localhost:8000/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
+// DEBUG: Log da configuração atual
+console.log('🔧 DEBUG API CONFIG:');
+console.log('- API_BASE_URL:', API_BASE_URL);
+console.log('- Environment:', import.meta.env.MODE);
+console.log('- Window location:', window.location.href);
+console.log('- All env vars:', import.meta.env);
 
 // Criar instância do axios
 const api = axios.create({
@@ -9,11 +49,14 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // 10 segundos timeout
 });
 
-// Interceptor para adicionar token de autenticação
+// DEBUG: Interceptor para logar requisições
 api.interceptors.request.use(
   (config) => {
+    console.log('🚀 REQUEST:', config.method?.toUpperCase(), config.url);
+    console.log('🚀 Full URL:', config.baseURL + config.url);
     const token = localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -21,14 +64,21 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
+    console.error('❌ REQUEST ERROR:', error);
     return Promise.reject(error);
   }
 );
 
 // Interceptor para tratar respostas e renovar token se necessário
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('✅ RESPONSE:', response.status, response.config.url);
+    return response;
+  },
   async (error) => {
+    console.error('❌ RESPONSE ERROR:', error.message);
+    console.error('❌ Error details:', error.response?.data || error);
+    
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -60,8 +110,40 @@ api.interceptors.response.use(
   }
 );
 
+// Test function para verificar conectividade
+export const testConnection = async () => {
+  try {
+    console.log('🔍 Testing connection to:', API_BASE_URL);
+    
+    // Teste 1: Conexão básica
+    const response = await fetch(API_BASE_URL.replace('/api', '/admin/'), { 
+      method: 'HEAD',
+      mode: 'cors'
+    });
+    console.log('✅ Basic connection test:', response.status);
+    
+    // Teste 2: API específica
+    const apiResponse = await api.get('/equipamentos/');
+    console.log('✅ API connection test:', apiResponse.status);
+    
+    return { success: true, status: 'Connected' };
+  } catch (error) {
+    console.error('❌ Connection test failed:', error);
+    return { 
+      success: false, 
+      error: error.message,
+      details: error.response?.data || error
+    };
+  }
+};
+
 // Serviços de autenticação
 export const authService = {
+  // Test connection
+  async testConnection() {
+    return testConnection();
+  },
+
   // Registro de cliente
   async register(userData) {
     const response = await api.post('/clientes/registro/', userData);
@@ -70,6 +152,7 @@ export const authService = {
 
   // Login
   async login(credentials) {
+    console.log('🔐 LOGIN attempt with:', { email: credentials.email });
     const response = await api.post('/clientes/login/', credentials);
     const { tokens } = response.data;
     
@@ -77,6 +160,7 @@ export const authService = {
     localStorage.setItem('access_token', tokens.access);
     localStorage.setItem('refresh_token', tokens.refresh);
     
+    console.log('✅ LOGIN successful');
     return response.data;
   },
 
