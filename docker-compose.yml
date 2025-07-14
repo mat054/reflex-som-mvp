@@ -25,7 +25,21 @@ services:
       - DJANGO_SETTINGS_MODULE=backend.settings_docker
     restart: unless-stopped
 
-  # Nginx (opcional, para servir arquivos estáticos)
+  # Frontend React com Vite
+  frontend:
+    build: ./frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules  # Volume anônimo para node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
+    restart: unless-stopped
+    depends_on:
+      - web
+
+  # Nginx (proxy reverso)
   nginx:
     image: nginx:alpine
     ports:
@@ -36,6 +50,7 @@ services:
       - media_volume:/app/media
     depends_on:
       - web
+      - frontend
     restart: unless-stopped
 
 volumes:
