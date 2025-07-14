@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Aplicação Django com SQLite
   web:
@@ -19,7 +17,7 @@ services:
     environment:
       - DEBUG=False
       - SECRET_KEY=your-secret-key-here
-      - ALLOWED_HOSTS=localhost,127.0.0.1
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
       - DATABASE_ENGINE=sqlite
       - DATABASE_NAME=/app/data/db.sqlite3
       - DJANGO_SETTINGS_MODULE=backend.settings_docker
