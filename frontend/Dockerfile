@@ -1,4 +1,4 @@
-# Dockerfile para Frontend React (Desenvolvimento)
+# Dockerfile para Frontend React (Produção)
 FROM node:20-alpine
 
 # Instalar pnpm
@@ -16,11 +16,14 @@ RUN pnpm install
 # Copiar código fonte
 COPY . .
 
-# Criar arquivo .env automaticamente se não existir
-RUN echo "VITE_API_BASE_URL=http://localhost/api" > .env
+# Criar arquivo .env automaticamente para produção
+RUN echo "VITE_API_BASE_URL=/api" > .env
 
-# Expor porta do Vite
-EXPOSE 5173
+# Fazer build da aplicação para produção
+RUN pnpm run build
 
-# Comando para desenvolvimento (com hot reload)
-CMD ["pnpm", "run", "dev", "--host", "0.0.0.0"] 
+# Expor porta 8080 (Railway padrão)
+EXPOSE 8080
+
+# Comando para produção (vite preview na porta 8080)
+CMD ["pnpm", "run", "preview", "--host", "0.0.0.0", "--port", "8080"] 
