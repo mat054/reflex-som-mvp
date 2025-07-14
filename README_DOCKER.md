@@ -13,25 +13,6 @@ Este guia fornece instruções completas para configurar e executar o Reflex Som
 - ✅ **Nginx** para servir arquivos estáticos
 - ✅ **Scripts automatizados** de setup
 
-## 🚀 **Setup Rápido (Recomendado)**
-
-### **Opção 1: Setup Automático (1 comando)**
-
-```bash
-# Baixar e executar o script de setup
-curl -sSL https://raw.githubusercontent.com/seu-usuario/reflex-som-mvp/main/setup-docker.sh | bash
-```
-
-### **Opção 2: Setup Manual**
-
-```bash
-# 1. Clonar repositório
-git clone https://github.com/seu-usuario/reflex-som-mvp.git
-cd reflex-som-mvp
-
-# 2. Executar setup
-./setup-docker.sh
-```
 
 ## 📋 **Pré-requisitos**
 
@@ -93,36 +74,112 @@ groups $USER | grep docker
 
 ```bash
 # Clonar repositório
-git clone https://github.com/seu-usuario/reflex-som-mvp.git
+git clone git@github.com:mat054/reflex-som-mvp.git
 cd reflex-som-mvp
+git checkout dev
 
 # Verificar arquivos
 ls -la
 # Deve mostrar: Dockerfile, docker-compose.yml, requirements.txt, etc.
 ```
 
-### **3. Executar Setup**
 
-```bash
-# Dar permissão de execução
-chmod +x setup-docker.sh
+### **3. Criar o arquivo .env**
 
-# Executar setup
-./setup-docker.sh
+Se o arquivo `.env` não existir na raiz do projeto, crie-o com o seguinte conteúdo:
+
+```env
+# Configurações do Django
+SECRET_KEY=django-insecure-change-this-in-production
+DEBUG=False
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# Configurações do banco
+DATABASE_ENGINE=sqlite
+DATABASE_NAME=/app/data/db.sqlite3
+
+# Configurações de CORS
+FRONTEND_URL=http://localhost:3000
+
+# Configurações do Docker
+DJANGO_SETTINGS_MODULE=backend.settings_docker
 ```
 
-### **4. Verificar Instalação**
+Crie com:
 
 ```bash
-# Verificar containers
-docker-compose ps
+nano .env
+# Cole o conteúdo acima, salve com CTRL+O e feche com CTRL+X
+```
 
-# Ver logs
-docker-compose logs web
 
-# Testar API
+---
+
+### **4. Construir e subir os containers Docker**
+
+```bash
+docker-compose build
+docker-compose up -d
+```
+
+> Se necessário, use `sudo`:
+>
+> ```bash
+> sudo docker-compose build
+> sudo docker-compose up -d
+> ```
+
+---
+
+### **5. Aguardar a inicialização**
+
+Você pode monitorar os logs com:
+
+```bash
+docker-compose logs -f
+```
+
+Espere até que o backend Django esteja rodando em `0.0.0.0:8000`.
+
+---
+
+### **6. Testar a aplicação**
+
+Verifique se a API está funcionando:
+
+```bash
 curl http://localhost:8000/api/equipamentos/
 ```
+
+Ou abra no navegador:
+
+```
+http://localhost:8000
+```
+
+---
+
+## 🧪 Endpoints úteis
+
+* Backend API: [http://localhost:8000](http://localhost:8000)
+* Admin Django: [http://localhost:8000/admin](http://localhost:8000/admin)
+* Swagger: [http://localhost:8000/swagger](http://localhost:8000/swagger)
+
+### 7. Frontend
+
+ Frontend (React)
+
+1. **Instalar dependências:**
+```bash
+cd frontend
+pnpm install
+```
+
+2. **Iniciar servidor de desenvolvimento:**
+```bash
+pnpm run dev --host
+```
+
 
 ## 📊 **Dados Criados Automaticamente**
 

@@ -23,15 +23,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar código da aplicação
 COPY . .
 
-# Criar diretório para logs
-RUN mkdir -p logs
-
-# Criar diretório para dados SQLite
-RUN mkdir -p /app/data
-
 # Criar usuário não-root
 RUN adduser --disabled-password --gecos '' appuser
-RUN chown -R appuser:appuser /app
+
+# Criar diretórios necessários e definir permissões
+RUN mkdir -p logs data staticfiles media \
+    && chown -R appuser:appuser /app \
+    && chmod -R 755 /app
+
+# Mudar para usuário não-root
 USER appuser
 
 # Expor porta
